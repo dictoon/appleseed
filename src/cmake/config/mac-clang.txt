@@ -29,7 +29,7 @@
 
 
 #--------------------------------------------------------------------------------------------------
-# clang on OS X, generating 32-bit or 64-bit binaries.
+# clang on macOS, generating 32-bit or 64-bit binaries.
 #--------------------------------------------------------------------------------------------------
 
 set (platform "mac-clang")
@@ -73,13 +73,11 @@ if (WARNINGS_AS_ERRORS)
         )
     endif ()
 endif ()
-if (USE_CPP11)
-    set (cxx_compiler_flags_common
-        ${cxx_compiler_flags_common}
-        -std=c++11                                      # enable C++11
-        -Wno-deprecated-declarations                    # remove when C++11 support improves.
-    )
-endif ()
+set (cxx_compiler_flags_common
+    ${cxx_compiler_flags_common}
+    -std=c++11                                          # enable C++11
+    -Wno-deprecated-declarations                        # remove when C++11 support improves
+)
 if (USE_SSE)
     set (c_compiler_flags_common
         ${c_compiler_flags_common}
@@ -192,10 +190,6 @@ endmacro ()
 
 macro (link_against_seexpreditor target)
     target_link_libraries (${target} ${SEEXPREDITOR_LIBRARIES})
-endmacro ()
-
-macro (link_against_partio target)
-    target_link_libraries (${target} ${PARTIO_LIBRARIES})
 endmacro ()
 
 

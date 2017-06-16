@@ -31,10 +31,9 @@
 #define APPLESEED_FOUNDATION_IMAGE_EXRUTILS_H
 
 // OpenEXR headers.
-#include "foundation/platform/exrheaderguards.h"
-BEGIN_EXR_INCLUDES
+#include "foundation/platform/_beginexrheaders.h"
 #include "OpenEXR/ImfHeader.h"
-END_EXR_INCLUDES
+#include "foundation/platform/_endexrheaders.h"
 
 // Forward declarations.
 namespace foundation    { class ImageAttributes; }

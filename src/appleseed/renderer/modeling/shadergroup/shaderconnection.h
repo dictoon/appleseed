@@ -39,10 +39,9 @@
 #include "main/dllsymbol.h"
 
 // OSL headers.
-#include "foundation/platform/oslheaderguards.h"
-BEGIN_OSL_INCLUDES
+#include "foundation/platform/_beginoslheaders.h"
 #include "OSL/oslexec.h"
-END_OSL_INCLUDES
+#include "foundation/platform/_endoslheaders.h"
 
 // Forward declarations.
 namespace renderer  { class ShaderGroup; }
@@ -59,7 +58,7 @@ class APPLESEED_DLLSYMBOL ShaderConnection
 {
   public:
     // Delete this instance.
-    virtual void release() APPLESEED_OVERRIDE;
+    virtual void release() override;
 
     // Return the source layer name.
     const char* get_src_layer() const;

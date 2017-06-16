@@ -44,16 +44,14 @@
 #include "foundation/utility/stopwatch.h"
 
 // OSL headers.
-#include "foundation/platform/oslheaderguards.h"
-BEGIN_OSL_INCLUDES
+#include "foundation/platform/_beginoslheaders.h"
 #include "OSL/oslexec.h"
-END_OSL_INCLUDES
+#include "foundation/platform/_endoslheaders.h"
 
 // OpenImageIO headers.
-#include "foundation/platform/oiioheaderguards.h"
-BEGIN_OIIO_INCLUDES
+#include "foundation/platform/_beginoiioheaders.h"
 #include "OpenImageIO/texture.h"
-END_OIIO_INCLUDES
+#include "foundation/platform/_endoiioheaders.h"
 
 // Standard headers.
 #include <cstddef>
@@ -90,19 +88,19 @@ class SPPMPassCallback
         const SPPMParameters&       params);
 
     // Delete this instance.
-    virtual void release() APPLESEED_OVERRIDE;
+    virtual void release() override;
 
     // This method is called at the beginning of a pass.
     virtual void pre_render(
         const Frame&                frame,
         foundation::JobQueue&       job_queue,
-        foundation::IAbortSwitch&   abort_switch) APPLESEED_OVERRIDE;
+        foundation::IAbortSwitch&   abort_switch) override;
 
     // This method is called at the end of a pass.
     virtual void post_render(
         const Frame&                frame,
         foundation::JobQueue&       job_queue,
-        foundation::IAbortSwitch&   abort_switch) APPLESEED_OVERRIDE;
+        foundation::IAbortSwitch&   abort_switch) override;
 
     // Return the i'th photon.
     const SPPMMonoPhoton& get_mono_photon(const size_t i) const;

@@ -108,7 +108,7 @@ class APPLESEED_DLLSYMBOL EDF
         const Project&              project,
         const BaseGroup*            parent,
         OnFrameBeginRecorder&       recorder,
-        foundation::IAbortSwitch*   abort_switch = 0) APPLESEED_OVERRIDE;
+        foundation::IAbortSwitch*   abort_switch = 0) override;
 
     // Evaluate the inputs of this EDF.
     virtual void* evaluate_inputs(
@@ -153,8 +153,14 @@ class APPLESEED_DLLSYMBOL EDF
     float get_max_contribution_scalar(const Source* source) const;
     float get_max_contribution_spectrum(const Source* source) const;
 
-    float get_max_contribution(const Source* source, const Source* multiplier) const;
-    float get_max_contribution(const char* input_name, const char* multiplier_name) const;
+    float get_max_contribution(
+        const Source*               source,
+        const Source*               multiplier,
+        const Source*               exposure) const;
+    float get_max_contribution(
+        const char*                 input_name,
+        const char*                 multiplier_name,
+        const char*                 exposure_name) const;
 
     // Retrieve the approximate contribution.
     virtual float get_uncached_max_contribution() const = 0;

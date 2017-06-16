@@ -89,7 +89,7 @@ class APPLESEED_DLLSYMBOL ObjectInstance
     static foundation::UniqueID get_class_uid();
 
     // Delete this instance.
-    virtual void release() APPLESEED_OVERRIDE;
+    virtual void release() override;
 
     // Compute and return the unique signature of this instance.
     virtual foundation::uint64 compute_signature() const;
@@ -110,7 +110,7 @@ class APPLESEED_DLLSYMBOL ObjectInstance
     foundation::uint32 get_vis_flags() const;
 
     // Return the medium priority of this instance.
-    foundation::uint8 get_medium_priority() const;
+    foundation::int8 get_medium_priority() const;
 
     enum RayBiasMethod
     {
@@ -189,7 +189,7 @@ class APPLESEED_DLLSYMBOL ObjectInstance
         const Project&              project,
         const BaseGroup*            parent,
         OnFrameBeginRecorder&       recorder,
-        foundation::IAbortSwitch*   abort_switch = 0) APPLESEED_OVERRIDE;
+        foundation::IAbortSwitch*   abort_switch = 0) override;
 
   private:
     friend class ObjectInstanceFactory;
@@ -198,7 +198,7 @@ class APPLESEED_DLLSYMBOL ObjectInstance
     Impl* impl;
 
     foundation::uint32  m_vis_flags;
-    foundation::uint8   m_medium_priority;
+    foundation::int8    m_medium_priority;
     RayBiasMethod       m_ray_bias_method;
     double              m_ray_bias_distance;
     bool                m_transform_swaps_handedness;
@@ -262,7 +262,7 @@ inline foundation::uint32 ObjectInstance::get_vis_flags() const
     return m_vis_flags;
 }
 
-inline foundation::uint8 ObjectInstance::get_medium_priority() const
+inline foundation::int8 ObjectInstance::get_medium_priority() const
 {
     return m_medium_priority;
 }

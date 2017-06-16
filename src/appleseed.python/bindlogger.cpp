@@ -28,7 +28,6 @@
 //
 
 // appleseed.python headers.
-#include "pyseed.h" // has to be first, to avoid redefinition warnings
 #include "gillocks.h"
 
 // appleseed.renderer headers.
@@ -36,6 +35,7 @@
 
 // appleseed.foundation headers.
 #include "foundation/platform/compiler.h"
+#include "foundation/platform/python.h"
 #include "foundation/utility/log.h"
 
 // Standard headers.
@@ -54,7 +54,7 @@ struct ILogTargetWrap
     ILogTargetWrap() {}
     ~ILogTargetWrap() {}
 
-    virtual void release() APPLESEED_OVERRIDE
+    virtual void release() override
     {
         delete this;
     }
@@ -64,7 +64,7 @@ struct ILogTargetWrap
         const char*                 file,
         const size_t                line,
         const char*                 header,
-        const char*                 message) APPLESEED_OVERRIDE
+        const char*                 message) override
     {
         // Because this can be called from multiple threads
         // we need to lock Python here.

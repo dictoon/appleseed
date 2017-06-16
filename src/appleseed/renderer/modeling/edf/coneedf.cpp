@@ -52,6 +52,7 @@ namespace renderer      { class Assembly; }
 namespace renderer      { class Project; }
 
 using namespace foundation;
+using namespace std;
 
 namespace renderer
 {
@@ -75,15 +76,16 @@ namespace
         {
             m_inputs.declare("radiance", InputFormatSpectralIlluminance);
             m_inputs.declare("radiance_multiplier", InputFormatFloat, "1.0");
+            m_inputs.declare("exposure", InputFormatFloat, "0.0");
             m_inputs.declare("angle", InputFormatFloat, "90.0");
         }
 
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
 
-        virtual const char* get_model() const APPLESEED_OVERRIDE
+        virtual const char* get_model() const override
         {
             return Model;
         }
@@ -92,7 +94,7 @@ namespace
             const Project&          project,
             const BaseGroup*        parent,
             OnFrameBeginRecorder&   recorder,
-            IAbortSwitch*           abort_switch) APPLESEED_OVERRIDE
+            IAbortSwitch*           abort_switch) override
         {
             if (!EDF::on_frame_begin(project, parent, recorder, abort_switch))
                 return false;
@@ -112,7 +114,7 @@ namespace
             const Vector2f&         s,
             Vector3f&               outgoing,
             Spectrum&               value,
-            float&                  probability) const APPLESEED_OVERRIDE
+            float&                  probability) const override
         {
             assert(is_normalized(geometric_normal));
 
@@ -121,7 +123,7 @@ namespace
 
             const InputValues* values = static_cast<const InputValues*>(data);
             value = values->m_radiance;
-            value *= values->m_radiance_multiplier;
+            value *= values->m_radiance_multiplier * pow(2.0f, values->m_exposure);
 
             probability = sample_cone_uniform_pdf(m_cos_half_angle);
             assert(probability > 0.0f);
@@ -132,7 +134,7 @@ namespace
             const Vector3f&         geometric_normal,
             const Basis3f&          shading_basis,
             const Vector3f&         outgoing,
-            Spectrum&               value) const APPLESEED_OVERRIDE
+            Spectrum&               value) const override
         {
             assert(is_normalized(geometric_normal));
             assert(is_normalized(outgoing));
@@ -147,7 +149,7 @@ namespace
 
             const InputValues* values = static_cast<const InputValues*>(data);
             value = values->m_radiance;
-            value *= values->m_radiance_multiplier;
+            value *= values->m_radiance_multiplier * pow(2.0f, values->m_exposure);
         }
 
         virtual void evaluate(
@@ -156,7 +158,7 @@ namespace
             const Basis3f&          shading_basis,
             const Vector3f&         outgoing,
             Spectrum&               value,
-            float&                  probability) const APPLESEED_OVERRIDE
+            float&                  probability) const override
         {
             assert(is_normalized(geometric_normal));
             assert(is_normalized(outgoing));
@@ -172,7 +174,7 @@ namespace
 
             const InputValues* values = static_cast<const InputValues*>(data);
             value = values->m_radiance;
-            value *= values->m_radiance_multiplier;
+            value *= values->m_radiance_multiplier * pow(2.0f, values->m_exposure);
 
             probability = sample_cone_uniform_pdf(m_cos_half_angle);
         }
@@ -181,7 +183,7 @@ namespace
             const void*             data,
             const Vector3f&         geometric_normal,
             const Basis3f&          shading_basis,
-            const Vector3f&         outgoing) const APPLESEED_OVERRIDE
+            const Vector3f&         outgoing) const override
         {
             assert(is_normalized(geometric_normal));
             assert(is_normalized(outgoing));
@@ -194,9 +196,9 @@ namespace
             return sample_cone_uniform_pdf(m_cos_half_angle);
         }
 
-        virtual float get_uncached_max_contribution() const APPLESEED_OVERRIDE
+        virtual float get_uncached_max_contribution() const override
         {
-            return get_max_contribution("radiance", "radiance_multiplier");
+            return get_max_contribution("radiance", "radiance_multiplier", "exposure");
         }
 
       private:
@@ -249,6 +251,17 @@ DictionaryArray ConeEDFFactory::get_input_metadata() const
                 Dictionary().insert("texture_instance", "Textures"))
             .insert("use", "optional")
             .insert("default", "1.0"));
+
+    metadata.push_back(
+        Dictionary()
+            .insert("name", "exposure")
+            .insert("label", "Exposure")
+            .insert("type", "numeric")
+            .insert("use", "optional")
+            .insert("default", "0.0")
+            .insert("min_value", "-64.0")
+            .insert("max_value", "64.0")
+            .insert("help", "Exposure"));
 
     metadata.push_back(
         Dictionary()

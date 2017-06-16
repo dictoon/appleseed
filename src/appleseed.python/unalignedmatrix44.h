@@ -30,13 +30,11 @@
 #ifndef APPLESEED_PYTHON_UNALIGNEDMATRIX44_H
 #define APPLESEED_PYTHON_UNALIGNEDMATRIX44_H
 
-// appleseed.python headers.
-#include "pyseed.h" // has to be first, to avoid redefinition warnings
-
 // appleseed.foundation headers.
 #include "foundation/math/matrix.h"
 #include "foundation/math/quaternion.h"
 #include "foundation/math/vector.h"
+#include "foundation/platform/python.h"
 #include "foundation/utility/iostreamop.h"
 
 // Standard headers.
@@ -107,14 +105,14 @@ class UnalignedMatrix44
             m_data[i] = x;
     }
 
-    template <class U>
+    template <typename U>
     explicit UnalignedMatrix44(const Matrix<U, 4, 4>& m)
     {
         for (size_t i = 0; i < 16; ++i)
             m_data[i] = static_cast<T>(m[i]);
     }
 
-    template <class U>
+    template <typename U>
     explicit UnalignedMatrix44(const UnalignedMatrix44<U>& m)
     {
         for (size_t i = 0; i < 16; ++i)
@@ -141,7 +139,7 @@ class UnalignedMatrix44
 
 #endif
 
-    template <class U>
+    template <typename U>
     UnalignedMatrix44<T>& operator=(const UnalignedMatrix44<U>& m)
     {
         for (size_t i = 0; i < 16; ++i)

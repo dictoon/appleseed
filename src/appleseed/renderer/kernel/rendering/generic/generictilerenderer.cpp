@@ -104,7 +104,7 @@ namespace
             compute_pixel_ordering(frame);
         }
 
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
@@ -114,7 +114,7 @@ namespace
             const size_t    tile_x,
             const size_t    tile_y,
             const size_t    pass_hash,
-            IAbortSwitch&   abort_switch) APPLESEED_OVERRIDE
+            IAbortSwitch&   abort_switch) override
         {
             // Retrieve frame properties.
             const CanvasProperties& frame_properties = frame.image().properties();
@@ -223,7 +223,7 @@ namespace
             m_pixel_renderer->on_tile_end(frame, tile, aov_tiles);
         }
 
-        virtual StatisticsVector get_statistics() const APPLESEED_OVERRIDE
+        virtual StatisticsVector get_statistics() const override
         {
             return m_pixel_renderer->get_statistics();
         }
@@ -233,7 +233,7 @@ namespace
         IShadingResultFrameBufferFactory*   m_framebuffer_factory;
         int                                 m_margin_width;
         int                                 m_margin_height;
-        vector<Vector<int16, 2> >           m_pixel_ordering;
+        vector<Vector<int16, 2>>            m_pixel_ordering;
         SamplingContext::RNGType            m_rng;
 
         void compute_tile_margins(const Frame& frame, const bool primary)

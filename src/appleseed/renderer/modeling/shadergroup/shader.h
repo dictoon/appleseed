@@ -41,10 +41,9 @@
 #include "main/dllsymbol.h"
 
 // OSL headers.
-#include "foundation/platform/oslheaderguards.h"
-BEGIN_OSL_INCLUDES
+#include "foundation/platform/_beginoslheaders.h"
 #include "OSL/oslexec.h"
-END_OSL_INCLUDES
+#include "foundation/platform/_endoslheaders.h"
 
 // Standard headers.
 #include <cstddef>
@@ -68,7 +67,7 @@ class APPLESEED_DLLSYMBOL Shader
 {
   public:
     // Delete this instance.
-    virtual void release() APPLESEED_OVERRIDE;
+    virtual void release() override;
 
     const char* get_type() const;
     const char* get_shader() const;

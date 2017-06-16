@@ -39,11 +39,10 @@
 #include "foundation/math/vector.h"
 
 // OSL headers.
-#include "foundation/platform/oslheaderguards.h"
-BEGIN_OSL_INCLUDES
+#include "foundation/platform/_beginoslheaders.h"
 #include "OSL/oslexec.h"
 #include "OSL/oslversion.h"
-END_OSL_INCLUDES
+#include "foundation/platform/_endoslheaders.h"
 
 // Forward declarations.
 namespace foundation    { class Arena; }
@@ -109,12 +108,6 @@ class OSLShaderGroupExec
     foundation::Color3f execute_background(
         const ShaderGroup&              shader_group,
         const foundation::Vector3f&     outgoing) const;
-
-    void execute_surface_shader(
-        const ShaderGroup&              shader_group,
-        const ShadingPoint&             shading_point,
-        const foundation::Color3f&      color,
-        const float                     alpha) const;
 
     void do_execute(
         const ShaderGroup&              shader_group,

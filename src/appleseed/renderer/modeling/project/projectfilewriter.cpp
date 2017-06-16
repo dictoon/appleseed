@@ -49,6 +49,7 @@
 #include "renderer/modeling/object/meshobject.h"
 #include "renderer/modeling/object/meshobjectwriter.h"
 #include "renderer/modeling/object/object.h"
+#include "renderer/modeling/phasefunction/phasefunction.h"
 #include "renderer/modeling/project/assethandler.h"
 #include "renderer/modeling/project/configuration.h"
 #include "renderer/modeling/project/configurationcontainer.h"
@@ -308,7 +309,7 @@ namespace
         {
             const SortedMutableEntityVector<Collection> sorted(collection);
 
-            for (const_each<SortedMutableEntityVector<Collection> > i = sorted; i; ++i)
+            for (const_each<SortedMutableEntityVector<Collection>> i = sorted; i; ++i)
                 write(**i);
         }
 
@@ -356,6 +357,7 @@ namespace
                 !assembly.lights().empty() ||
                 !assembly.objects().empty() ||
                 !assembly.object_instances().empty() ||
+                !assembly.phase_functions().empty() ||
                 !assembly.assemblies().empty() ||
                 !assembly.assembly_instances().empty()
                     ? XMLElement::HasChildElements
@@ -375,6 +377,7 @@ namespace
             write_collection(assembly.lights());
             write_object_collection(assembly.objects());
             write_collection(assembly.object_instances());
+            write_collection(assembly.phase_functions());
             write_collection(assembly.assemblies());
             write_collection(assembly.assembly_instances());
         }
@@ -584,13 +587,19 @@ namespace
             write_entity("material", material);
         }
 
+        // Write a <phase_function> element.
+        void write(const PhaseFunction& material)
+        {
+            write_entity("phase_function", material);
+        }
+
         // Write a collection of <object> elements.
         void write_object_collection(ObjectContainer& objects)
         {
             const SortedMutableEntityVector<ObjectContainer> sorted(objects);
             set<string> groups;
 
-            for (const_each<SortedMutableEntityVector<ObjectContainer> > i = sorted; i; ++i)
+            for (const_each<SortedMutableEntityVector<ObjectContainer>> i = sorted; i; ++i)
             {
                 Object& object = **i;
 

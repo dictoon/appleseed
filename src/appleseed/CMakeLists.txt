@@ -480,6 +480,12 @@ source_group ("foundation\\platform\\snprintf" FILES
 )
 
 set (foundation_platform_sources
+    foundation/platform/_beginexrheaders.h
+    foundation/platform/_beginoiioheaders.h
+    foundation/platform/_beginoslheaders.h
+    foundation/platform/_endexrheaders.h
+    foundation/platform/_endoiioheaders.h
+    foundation/platform/_endoslheaders.h
     foundation/platform/arch.h
     foundation/platform/atomic.h
     foundation/platform/compiler.cpp
@@ -491,12 +497,10 @@ set (foundation_platform_sources
     foundation/platform/debugger.h
     foundation/platform/defaulttimers.cpp
     foundation/platform/defaulttimers.h
-    foundation/platform/exrheaderguards.h
-    foundation/platform/oiioheaderguards.h
     foundation/platform/opengl.h
-    foundation/platform/oslheaderguards.h
     foundation/platform/path.cpp
     foundation/platform/path.h
+    foundation/platform/python.h
     foundation/platform/sharedlibrary.cpp
     foundation/platform/sharedlibrary.h
     foundation/platform/snprintf.h
@@ -790,12 +794,6 @@ if (WITH_DISNEY_MATERIAL)
         foundation/utility/seexpr.h
     )
 endif ()
-if (WITH_PARTIO)
-    list (APPEND foundation_utility_sources
-        foundation/utility/partiofile.cpp
-        foundation/utility/partiofile.h
-    )
-endif ()
 list (APPEND appleseed_sources
     ${foundation_utility_sources}
 )
@@ -844,6 +842,7 @@ set (renderer_api_sources
     renderer/api/log.h
     renderer/api/material.h
     renderer/api/object.h
+    renderer/api/phasefunction.h
     renderer/api/project.h
     renderer/api/rendering.h
     renderer/api/scene.h
@@ -987,6 +986,8 @@ set (renderer_kernel_lighting_sources
     renderer/kernel/lighting/imagebasedlighting.h
     renderer/kernel/lighting/lightsampler.cpp
     renderer/kernel/lighting/lightsampler.h
+    renderer/kernel/lighting/materialsamplers.cpp
+    renderer/kernel/lighting/materialsamplers.h
     renderer/kernel/lighting/pathtracer.h
     renderer/kernel/lighting/pathvertex.cpp
     renderer/kernel/lighting/pathvertex.h
@@ -1218,6 +1219,7 @@ set (renderer_meta_tests_sources
     renderer/meta/tests/test_lightsampler.cpp
     renderer/meta/tests/test_localsampleaccumulationbuffer.cpp
     renderer/meta/tests/test_paramarray.cpp
+    renderer/meta/tests/test_phasefunction.cpp
     renderer/meta/tests/test_pinholecamera.cpp
     renderer/meta/tests/test_pixelsampler.cpp
     renderer/meta/tests/test_projectfilereader.cpp
@@ -1265,8 +1267,6 @@ source_group ("renderer\\modeling\\aov" FILES
 )
 
 set (renderer_modeling_bsdf_sources
-    renderer/modeling/bsdf/alsurfacelayerbrdf.cpp
-    renderer/modeling/bsdf/alsurfacelayerbrdf.h
     renderer/modeling/bsdf/ashikhminbrdf.cpp
     renderer/modeling/bsdf/ashikhminbrdf.h
     renderer/modeling/bsdf/backfacingpolicy.h
@@ -1647,6 +1647,25 @@ source_group ("renderer\\modeling\\object" FILES
     ${renderer_modeling_object_sources}
 )
 
+set (renderer_modeling_phasefunction_sources
+    renderer/modeling/phasefunction/henyeyphasefunction.cpp
+    renderer/modeling/phasefunction/henyeyphasefunction.h
+    renderer/modeling/phasefunction/iphasefunctionfactory.h
+    renderer/modeling/phasefunction/isotropicphasefunction.cpp
+    renderer/modeling/phasefunction/isotropicphasefunction.h
+    renderer/modeling/phasefunction/phasefunction.cpp
+    renderer/modeling/phasefunction/phasefunction.h
+    renderer/modeling/phasefunction/phasefunctionfactoryregistrar.cpp
+    renderer/modeling/phasefunction/phasefunctionfactoryregistrar.h
+    renderer/modeling/phasefunction/phasefunctiontraits.h
+)
+list (APPEND appleseed_sources
+    ${renderer_modeling_phasefunction_sources}
+)
+source_group ("renderer\\modeling\\phasefunction" FILES
+    ${renderer_modeling_phasefunction_sources}
+)
+
 set (renderer_modeling_project_sources
     renderer/modeling/project/assethandler.cpp
     renderer/modeling/project/assethandler.h
@@ -1841,6 +1860,12 @@ add_library (appleseed SHARED
     ${appleseed_sources}
 )
 
+if (USE_VISIBILITY_MAP)
+    set_target_properties (appleseed PROPERTIES
+        LINK_FLAGS "-Wl,--version-script=${PROJECT_SOURCE_DIR}/src/appleseed/libappleseed.map"
+    )
+endif ()
+
 
 #--------------------------------------------------------------------------------------------------
 # Preprocessor definitions.
@@ -1852,11 +1877,6 @@ append_custom_preprocessor_definitions (appleseed
     APPLESEED_ENABLE_IMATH_INTEROP
 )
 
-if (USE_VISIBILITY_MAP)
-    set_target_properties (appleseed PROPERTIES
-        LINK_FLAGS "-Wl,--version-script=${PROJECT_SOURCE_DIR}/src/appleseed/libappleseed.map"
-    )
-endif ()
 
 #--------------------------------------------------------------------------------------------------
 # Static libraries.
@@ -1875,10 +1895,6 @@ link_against_osl (appleseed)
 
 if (WITH_DISNEY_MATERIAL)
     link_against_seexpr (appleseed)
-endif ()
-
-if (WITH_PARTIO)
-    link_against_partio (appleseed)
 endif ()
 
 target_link_libraries (appleseed

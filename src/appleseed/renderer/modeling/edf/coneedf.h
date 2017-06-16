@@ -59,6 +59,7 @@ APPLESEED_DECLARE_INPUT_VALUES(ConeEDFInputValues)
 {
     Spectrum    m_radiance;             // emitted radiance in W.m^-2.sr^-1
     float       m_radiance_multiplier;  // emitted radiance multiplier
+    float       m_exposure;             // emitted radiance exposure
     float       m_angle;                // cone angle
 };
 
@@ -72,18 +73,18 @@ class APPLESEED_DLLSYMBOL ConeEDFFactory
 {
   public:
     // Return a string identifying this EDF model.
-    virtual const char* get_model() const APPLESEED_OVERRIDE;
+    virtual const char* get_model() const override;
 
     // Return metadata for this EDF model.
-    virtual foundation::Dictionary get_model_metadata() const APPLESEED_OVERRIDE;
+    virtual foundation::Dictionary get_model_metadata() const override;
 
     // Return metadata for the inputs of this EDF model.
-    virtual foundation::DictionaryArray get_input_metadata() const APPLESEED_OVERRIDE;
+    virtual foundation::DictionaryArray get_input_metadata() const override;
 
     // Create a new EDF instance.
     virtual foundation::auto_release_ptr<EDF> create(
         const char*         name,
-        const ParamArray&   params) const APPLESEED_OVERRIDE;
+        const ParamArray&   params) const override;
 
     // Static variant of the create() method above.
     static foundation::auto_release_ptr<EDF> static_create(

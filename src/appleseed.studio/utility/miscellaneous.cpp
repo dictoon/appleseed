@@ -45,10 +45,9 @@
 #include "application/application.h"
 
 // OpenImageIO headers.
-#include "foundation/platform/oiioheaderguards.h"
-BEGIN_OIIO_INCLUDES
+#include "foundation/platform/_beginoiioheaders.h"
 #include "OpenImageIO/texture.h"
-END_OIIO_INCLUDES
+#include "foundation/platform/_endoiioheaders.h"
 
 // Qt headers.
 #include <QDir>
@@ -101,7 +100,7 @@ QString get_oiio_image_files_filter()
         vector<string> formats;
         split(extensions, ";", formats);
 
-        for (const_each<vector<string> > i = formats; i; ++i)
+        for (const_each<vector<string>> i = formats; i; ++i)
         {
             const string::size_type sep = i->find_first_of(':');
             const string format = i->substr(0, sep);
@@ -112,7 +111,7 @@ QString get_oiio_image_files_filter()
 
             sstr << upper_case(format) << " Files (";
 
-            for (const_each<vector<string> > e = exts; e; ++e)
+            for (const_each<vector<string>> e = exts; e; ++e)
             {
                 if (e.it() != exts.begin())
                     sstr << " ";

@@ -196,7 +196,7 @@ namespace
         {
         }
 
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
@@ -206,7 +206,7 @@ namespace
             const PixelContext&     pixel_context,
             const ShadingContext&   shading_context,
             const ShadingPoint&     shading_point,
-            Spectrum&               radiance) APPLESEED_OVERRIDE    // output radiance, in W.sr^-1.m^-2
+            Spectrum&               radiance) override      // output radiance, in W.sr^-1.m^-2
         {
             if (m_params.m_next_event_estimation)
             {
@@ -241,8 +241,11 @@ namespace
                 shading_point.get_scene(),
                 radiance);
 
-            PathTracer<PathVisitor, false> path_tracer(     // false = not adjoint
+            VolumeVisitor volume_visitor;
+
+            PathTracer<PathVisitor, VolumeVisitor, false> path_tracer(     // false = not adjoint
                 path_visitor,
+                volume_visitor,
                 m_params.m_rr_min_path_length,
                 m_params.m_max_bounces == ~0 ? ~0 : m_params.m_max_bounces + 1,
                 m_params.m_max_diffuse_bounces == ~0 ? ~0 : m_params.m_max_diffuse_bounces + 1,
@@ -261,7 +264,7 @@ namespace
             m_path_length.insert(path_length);
         }
 
-        virtual StatisticsVector get_statistics() const APPLESEED_OVERRIDE
+        virtual StatisticsVector get_statistics() const override
         {
             Statistics stats;
             stats.insert("path count", m_path_count);
@@ -624,14 +627,18 @@ namespace
                         m_sampling_context,
                         m_params.m_dl_light_sample_count);
 
+                const BSDFSampler bsdf_sampler(
+                    bsdf,
+                    bsdf_data,
+                    scattering_modes,   // bsdf_sampling_modes (unused)
+                    shading_point);
+
                 // This path will be extended via BSDF sampling: sample the lights only.
                 const DirectLightingIntegrator integrator(
                     m_shading_context,
                     m_light_sampler,
-                    shading_point,
-                    bsdf,
-                    bsdf_data,
-                    scattering_modes,   // bsdf_sampling_modes (unused)
+                    bsdf_sampler,
+                    shading_point.get_time(),
                     scattering_modes,   // light_sampling_modes
                     1,                  // bsdf_sample_count
                     light_sample_count,
@@ -694,6 +701,17 @@ namespace
 
                 if (avg > m_params.m_max_ray_intensity)
                     radiance *= m_params.m_max_ray_intensity / avg;
+            }
+        };
+
+        //
+        // Volume visitor that does nothing.
+        //
+
+        struct VolumeVisitor
+        {
+            void visit(const ShadingRay& volume_ray)
+            {
             }
         };
     };

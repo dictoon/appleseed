@@ -211,12 +211,12 @@ namespace
             m_shutter_close_time = camera->get_shutter_close_time();
         }
 
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
 
-        virtual void reset() APPLESEED_OVERRIDE
+        virtual void reset() override
         {
             SampleGeneratorBase::reset();
             m_rng = SamplingContext::RNGType();
@@ -225,7 +225,7 @@ namespace
         virtual void generate_samples(
             const size_t                sample_count,
             SampleAccumulationBuffer&   buffer,
-            IAbortSwitch&               abort_switch) APPLESEED_OVERRIDE
+            IAbortSwitch&               abort_switch) override
         {
             m_light_sample_count = 0;
 
@@ -235,7 +235,7 @@ namespace
                 .increment_sample_count(m_light_sample_count);
         }
 
-        virtual StatisticsVector get_statistics() const APPLESEED_OVERRIDE
+        virtual StatisticsVector get_statistics() const override
         {
             Statistics stats;
             stats.insert("path count", m_path_count);
@@ -245,6 +245,11 @@ namespace
         }
 
       private:
+        struct VolumeVisitor
+        {
+            void visit(const ShadingRay& volume_ray) {}
+        };
+
         struct PathVisitor
         {
             const Parameters&               m_params;
@@ -484,7 +489,7 @@ namespace
             }
         };
 
-        typedef PathTracer<PathVisitor, true> PathTracerType;   // true = adjoint
+        typedef PathTracer<PathVisitor, VolumeVisitor, true> PathTracerType;   // true = adjoint
 
         const Parameters                m_params;
 
@@ -517,7 +522,7 @@ namespace
 
         virtual size_t generate_samples(
             const size_t                sequence_index,
-            SampleVector&               samples) APPLESEED_OVERRIDE
+            SampleVector&               samples) override
         {
             m_arena.clear();
 
@@ -650,8 +655,10 @@ namespace
                 sampling_context,
                 samples,
                 initial_flux);
+            VolumeVisitor volume_visitor;
             PathTracerType path_tracer(
                 path_visitor,
+                volume_visitor,
                 m_params.m_rr_min_path_length,
                 m_params.m_max_bounces,
                 ~0, // max diffuse bounces
@@ -730,8 +737,10 @@ namespace
                 sampling_context,
                 samples,
                 initial_flux);
+            VolumeVisitor volume_visitor;
             PathTracerType path_tracer(
                 path_visitor,
+                volume_visitor,
                 m_params.m_rr_min_path_length,
                 m_params.m_max_bounces,
                 ~0, // max diffuse bounces
@@ -820,8 +829,10 @@ namespace
                 sampling_context,
                 samples,
                 initial_flux);
+            VolumeVisitor volume_visitor;
             PathTracerType path_tracer(
                 path_visitor,
+                volume_visitor,
                 m_params.m_rr_min_path_length,
                 m_params.m_max_bounces,
                 ~0, // max diffuse bounces

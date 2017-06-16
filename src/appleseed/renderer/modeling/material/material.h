@@ -54,6 +54,7 @@ namespace renderer      { class IBasisModifier; }
 namespace renderer      { class MessageContext; }
 namespace renderer      { class OnFrameBeginRecorder; }
 namespace renderer      { class ParamArray; }
+namespace renderer      { class PhaseFunction; }
 namespace renderer      { class Project; }
 namespace renderer      { class ShaderGroup; }
 namespace renderer      { class Source; }
@@ -94,6 +95,9 @@ class APPLESEED_DLLSYMBOL Material
     // Return the name the BSSRDF bound to this material, or 0 if the material doesn't have one.
     const char* get_bssrdf_name() const;
 
+    // Return the name the phase function bound to this material, or 0 if the material doesn't have one.
+    const char* get_phase_function_name() const;
+
     // Return the name the EDF bound to this material, or 0 if the material doesn't have one.
     const char* get_edf_name() const;
 
@@ -108,6 +112,9 @@ class APPLESEED_DLLSYMBOL Material
 
     // Return the EDF of the material, or 0 if the material doesn't have one.
     const EDF* get_uncached_edf() const;
+
+    // Return the phase function of the material, or 0 if the material doesn't have one.
+    const PhaseFunction* get_uncached_phase_function() const;
 
     // Return the source bound to the alpha map input, or 0 if the material doesn't have an alpha map.
     const Source* get_uncached_alpha_map() const;
@@ -124,12 +131,12 @@ class APPLESEED_DLLSYMBOL Material
         const Project&              project,
         const BaseGroup*            parent,
         OnFrameBeginRecorder&       recorder,
-        foundation::IAbortSwitch*   abort_switch = 0) APPLESEED_OVERRIDE;
+        foundation::IAbortSwitch*   abort_switch = 0) override;
 
     // This method is called once after rendering each frame (only if on_frame_begin() was called).
     virtual void on_frame_end(
         const Project&              project,
-        const BaseGroup*            parent) APPLESEED_OVERRIDE;
+        const BaseGroup*            parent) override;
 
     struct RenderData
     {
@@ -137,6 +144,7 @@ class APPLESEED_DLLSYMBOL Material
         const BSDF*                 m_bsdf;
         const BSSRDF*               m_bssrdf;
         const EDF*                  m_edf;
+        const PhaseFunction*        m_phase_function;
         const Source*               m_alpha_map;
         const ShaderGroup*          m_shader_group;
         const IBasisModifier*       m_basis_modifier;   // owned by RenderData

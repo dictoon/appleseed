@@ -31,7 +31,6 @@
 #define APPLESEED_PYTHON_BINDENTITYCONTAINERS_H
 
 // appleseed.python headers.
-#include "pyseed.h" // has to be first, to avoid redefinition warnings
 #include "dict2dict.h"
 
 // appleseed.renderer headers.
@@ -39,6 +38,7 @@
 #include "renderer/modeling/entity/entityvector.h"
 
 // appleseed.foundation headers.
+#include "foundation/platform/python.h"
 #include "foundation/utility/autoreleaseptr.h"
 
 // Standard headers.
@@ -141,7 +141,7 @@ void bind_typed_entity_vector(const char* name)
         .def("insert", &renderer::TypedEntityVector<T>::insert)
         .def("remove", &detail::typed_entity_vector_remove<T>)
 
-        .def("__iter__", boost::python::iterator<renderer::TypedEntityVector<T>, boost::python::return_internal_reference<> >());
+        .def("__iter__", boost::python::iterator<renderer::TypedEntityVector<T>, boost::python::return_internal_reference<>>());
 }
 
 template <typename T>

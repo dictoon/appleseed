@@ -116,7 +116,7 @@ class Basis3
 
 // Poisoning.
 template <typename T>
-class PoisonImpl<Basis3<T> >
+class PoisonImpl<Basis3<T>>
 {
   public:
     static void do_poison(Basis3<T>& basis);
@@ -188,7 +188,11 @@ inline void Basis3<T>::build(const VectorType& normal)
 
     m_n = normal;
 
+#if !defined(_MSC_VER) || _MSC_VER >= 1800
+    const T sign = std::copysign(T(1.0), m_n[2]);
+#else
     const T sign = m_n[2] < T(0.0) ? T(-1.0) : T(1.0);
+#endif
 
     const T a = T(-1.0) / (sign + m_n[2]);
     const T b = m_n[0] * m_n[1] * a;
@@ -295,7 +299,7 @@ inline const Vector<T, 3>& Basis3<T>::get_tangent_v() const
 }
 
 template <typename T>
-void PoisonImpl<Basis3<T> >::do_poison(Basis3<T>& basis)
+void PoisonImpl<Basis3<T>>::do_poison(Basis3<T>& basis)
 {
     poison(basis.m_n);
     poison(basis.m_u);

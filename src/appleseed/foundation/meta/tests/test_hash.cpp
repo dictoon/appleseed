@@ -63,7 +63,7 @@ TEST_SUITE(Foundation_Math_Hash)
         {
             const size_t value = bins[i];
             const size_t Scale = (N / BinCount) / 100;
-            fprintf(file, "%u\t", i);
+            fprintf(file, FMT_SIZE_T "\t", i);
             for (size_t j = 0; j < value / Scale; ++j)
                 fprintf(file, "#");
             fprintf(file, "\n");

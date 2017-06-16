@@ -38,16 +38,14 @@
 #include "foundation/platform/compiler.h"
 
 // OSL headers.
-#include "foundation/platform/oslheaderguards.h"
-BEGIN_OSL_INCLUDES
+#include "foundation/platform/_beginoslheaders.h"
 #include "OSL/oslexec.h"
-END_OSL_INCLUDES
+#include "foundation/platform/_endoslheaders.h"
 
 // OpenImageIO headers.
-#include "foundation/platform/oiioheaderguards.h"
-BEGIN_OIIO_INCLUDES
+#include "foundation/platform/_beginoiioheaders.h"
 #include "OpenImageIO/texture.h"
-END_OIIO_INCLUDES
+#include "foundation/platform/_endoiioheaders.h"
 
 // Standard headers.
 #include <cstddef>
@@ -79,15 +77,15 @@ class LightTracingSampleGeneratorFactory
         const ParamArray&       params);
 
     // Delete this instance.
-    virtual void release() APPLESEED_OVERRIDE;
+    virtual void release() override;
 
     // Return a new sample generator instance.
     virtual ISampleGenerator* create(
         const size_t            generator_index,
-        const size_t            generator_count) APPLESEED_OVERRIDE;
+        const size_t            generator_count) override;
 
     // Create an accumulation buffer for this sample generator.
-    virtual SampleAccumulationBuffer* create_sample_accumulation_buffer() APPLESEED_OVERRIDE;
+    virtual SampleAccumulationBuffer* create_sample_accumulation_buffer() override;
 
   private:
     const Project&              m_project;

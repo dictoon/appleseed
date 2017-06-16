@@ -98,12 +98,12 @@ namespace
                     "standard_dipole");
         }
 
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
 
-        virtual const char* get_model() const APPLESEED_OVERRIDE
+        virtual const char* get_model() const override
         {
             return "osl_bssrdf";
         }
@@ -112,7 +112,7 @@ namespace
             const Project&          project,
             const BaseGroup*        parent,
             OnFrameBeginRecorder&   recorder,
-            IAbortSwitch*           abort_switch = 0) APPLESEED_OVERRIDE
+            IAbortSwitch*           abort_switch = 0) override
         {
             if (!BSSRDF::on_frame_begin(project, parent, recorder, abort_switch))
                 return false;
@@ -131,7 +131,7 @@ namespace
 
         virtual void* evaluate_inputs(
             const ShadingContext&   shading_context,
-            const ShadingPoint&     shading_point) const APPLESEED_OVERRIDE
+            const ShadingPoint&     shading_point) const override
         {
             CompositeSubsurfaceClosure* c =
                 shading_context.get_arena().allocate_noinit<CompositeSubsurfaceClosure>();
@@ -160,14 +160,17 @@ namespace
             const ShadingPoint&     outgoing_point,
             const Vector3f&         outgoing_dir,
             BSSRDFSample&           bssrdf_sample,
-            BSDFSample&             bsdf_sample) const APPLESEED_OVERRIDE
+            BSDFSample&             bsdf_sample) const override
         {
             const CompositeSubsurfaceClosure* c =
                 static_cast<const CompositeSubsurfaceClosure*>(data);
 
             if (c->get_closure_count() > 0)
             {
-                const size_t closure_index = c->choose_closure(sampling_context);
+                sampling_context.split_in_place(1, 1);
+                const size_t closure_index = c->choose_closure(
+                    sampling_context.next2<float>());
+
                 const Basis3f& modified_basis = c->get_closure_shading_basis(closure_index);
 
                 outgoing_point.set_shading_basis(Basis3d(modified_basis));
@@ -186,7 +189,7 @@ namespace
                 if (result)
                 {
                     bssrdf_sample.m_value *= c->get_closure_weight(closure_index);
-                    bssrdf_sample.m_probability *= c->get_closure_pdf_weight(closure_index);
+                    bssrdf_sample.m_probability *= c->get_closure_pdf(closure_index);
                 }
 
                 return result;
@@ -201,7 +204,7 @@ namespace
             const Vector3f&         outgoing_dir,
             const ShadingPoint&     incoming_point,
             const Vector3f&         incoming_dir,
-            Spectrum&               value) const APPLESEED_OVERRIDE
+            Spectrum&               value) const override
         {
             const CompositeSubsurfaceClosure* c =
                 static_cast<const CompositeSubsurfaceClosure*>(data);

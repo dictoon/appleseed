@@ -28,7 +28,6 @@
 //
 
 // appleseed.python headers.
-#include "pyseed.h" // has to be first, to avoid redefinition warnings
 #include "gillocks.h"
 
 // appleseed.renderer headers.
@@ -37,6 +36,7 @@
 
 // appleseed.foundation headers.
 #include "foundation/platform/compiler.h"
+#include "foundation/platform/python.h"
 
 namespace bpy = boost::python;
 using namespace foundation;
@@ -49,12 +49,12 @@ namespace
       , public bpy::wrapper<ITileCallback>
     {
       public:
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
 
-        virtual void pre_render(const size_t x, const size_t y, const size_t width, const size_t height) APPLESEED_OVERRIDE
+        virtual void pre_render(const size_t x, const size_t y, const size_t width, const size_t height) override
         {
             // Lock Python's global interpreter lock (GIL),
             // it was released in MasterRenderer.render.
@@ -68,7 +68,7 @@ namespace
         {
         }
 
-        virtual void post_render_tile(const Frame* frame, const size_t tile_x, const size_t tile_y) APPLESEED_OVERRIDE
+        virtual void post_render_tile(const Frame* frame, const size_t tile_x, const size_t tile_y) override
         {
             // Lock Python's global interpreter lock (GIL),
             // it was released in MasterRenderer.render.
@@ -82,7 +82,7 @@ namespace
         {
         }
 
-        virtual void post_render(const Frame* frame) APPLESEED_OVERRIDE
+        virtual void post_render(const Frame* frame) override
         {
             // Lock Python's global interpreter lock (GIL),
             // it was released in MasterRenderer.render.

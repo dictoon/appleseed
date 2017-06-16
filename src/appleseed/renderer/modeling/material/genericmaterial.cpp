@@ -64,14 +64,15 @@ namespace
             m_inputs.declare("edf", InputFormatEntity, "");
             m_inputs.declare("alpha_map", InputFormatFloat, "");
             m_inputs.declare("displacement_map", InputFormatSpectralReflectance, "");
+            m_inputs.declare("phase_function", InputFormatEntity, "");
         }
 
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
 
-        virtual const char* get_model() const APPLESEED_OVERRIDE
+        virtual const char* get_model() const override
         {
             return Model;
         }
@@ -80,7 +81,7 @@ namespace
             const Project&          project,
             const BaseGroup*        parent,
             OnFrameBeginRecorder&   recorder,
-            IAbortSwitch*           abort_switch) APPLESEED_OVERRIDE
+            IAbortSwitch*           abort_switch) override
         {
             if (!Material::on_frame_begin(project, parent, recorder, abort_switch))
                 return false;
@@ -90,6 +91,7 @@ namespace
             m_render_data.m_bsdf = get_uncached_bsdf();
             m_render_data.m_bssrdf = get_uncached_bssrdf();
             m_render_data.m_edf = get_uncached_edf();
+            m_render_data.m_phase_function = get_uncached_phase_function();
             m_render_data.m_basis_modifier = create_basis_modifier(context);
 
             if (m_render_data.m_edf && m_render_data.m_alpha_map)
@@ -152,6 +154,15 @@ DictionaryArray GenericMaterialFactory::get_input_metadata() const
             .insert("type", "entity")
             .insert("entity_types", Dictionary().insert("edf", "EDF"))
             .insert("use", "optional"));
+
+    metadata.push_back(
+        Dictionary()
+        .insert("name", "phase_function")
+        .insert("label", "Phase Function")
+        .insert("type", "entity")
+        .insert("entity_types",
+            Dictionary().insert("phase_function", "Phase Function"))
+        .insert("use", "optional"));
 
     add_alpha_map_metadata(metadata);
     add_displacement_metadata(metadata);

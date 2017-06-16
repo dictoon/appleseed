@@ -38,16 +38,14 @@
 #include "foundation/platform/compiler.h"
 
 // OSL headers.
-#include "foundation/platform/oslheaderguards.h"
-BEGIN_OSL_INCLUDES
+#include "foundation/platform/_beginoslheaders.h"
 #include "OSL/oslexec.h"
-END_OSL_INCLUDES
+#include "foundation/platform/_endoslheaders.h"
 
 // OpenImageIO headers.
-#include "foundation/platform/oiioheaderguards.h"
-BEGIN_OIIO_INCLUDES
+#include "foundation/platform/_beginoiioheaders.h"
 #include "OpenImageIO/texture.h"
-END_OIIO_INCLUDES
+#include "foundation/platform/_endoiioheaders.h"
 
 // Forward declarations.
 namespace renderer  { class Frame; }
@@ -81,11 +79,11 @@ class GenericSampleRendererFactory
         const ParamArray&       params);
 
     // Delete this instance.
-    virtual void release() APPLESEED_OVERRIDE;
+    virtual void release() override;
 
     // Return a new sample renderer instance.
     virtual ISampleRenderer* create(
-        const size_t            thread_index) APPLESEED_OVERRIDE;
+        const size_t            thread_index) override;
 
   private:
     const Scene&                m_scene;

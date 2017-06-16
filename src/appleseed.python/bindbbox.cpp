@@ -27,11 +27,9 @@
 // THE SOFTWARE.
 //
 
-// appleseed.python headers.
-#include "pyseed.h" // has to be first, to avoid redefinition warnings
-
 // appleseed.foundation headers.
 #include "foundation/math/aabb.h"
+#include "foundation/platform/python.h"
 #include "foundation/utility/iostreamop.h"
 
 namespace bpy = boost::python;
@@ -42,7 +40,7 @@ namespace
     template <typename T>
     void bind_aabb3(const char* class_name)
     {
-        bpy::class_<AABB<T, 3> >(class_name)
+        bpy::class_<AABB<T, 3>>(class_name)
             .def_readwrite("min", &AABB<T, 3>::min)
             .def_readwrite("max", &AABB<T, 3>::max)
 

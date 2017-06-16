@@ -37,28 +37,67 @@ shader as_maya_noise
     string as_maya_node_name = "noise"
 ]]
 (
+    float in_threshold = 0.0
+    [[
+        string as_maya_attribute_name = "threshold",
+        float min = 0.0,
+        float max = 1.0,
+        string label = "Threshold",
+        string page = "Noise Attributes"
+    ]],
     float in_amplitude = 1.0
     [[
         string as_maya_attribute_name = "amplitude",
-        string label = "Amplitude"
+        float min = 0.0,
+        float softmax = 1.0,
+        string label = "Amplitude",
+        string page = "Noise Attributes" 
     ]],
     float in_ratio = 0.707
     [[
         string as_maya_attribute_name = "ratio",
-        string label = "Ratio"
+        float min = 0.0,
+        float max = 1.0,
+        string label = "Ratio",
+        string page = "Noise Attributes"
     ]],
-    float in_threshold = 0.0
+    float in_frequencyRatio = 2.0
     [[
-        string as_maya_attribute_name = "threshold",
-        string label = "Threshold"
+        string as_maya_attribute_name = "frequencyRatio",
+        string widget = "slider",
+        float min = 1.0,
+        float max = 10.0,
+        float slidermin = 1.0,
+        float slidermax = 10.0,
+        string label = "Frequency Ratio",
+        string page = "Noise Attributes"
     ]],
     int in_depthMax = 3
     [[
         string as_maya_attribute_name = "depthMax",
+        int min = 1,
+        int max = 80,
         string widget = "slider",
         int slidermin = 1,
         int slidermax = 8,
-        string label = "Maximum Depth"
+        string label = "Maximum Depth",
+        string page = "Noise Attributes"
+    ]],
+    int in_inflection = 0
+    [[
+        string as_maya_attribute_name = "inflection",
+        string widget = "checkBox",
+        string label = "Inflection",,
+        string page = "Noise Attributes",
+        int divider = 1
+    ]],
+    float in_time = 0.0
+    [[
+        string as_maya_attribute_name = "time",
+        float softmin = 0.0,
+        float softmax = 10.0,
+        string label = "Time",
+        string page = "Noise Attributes"
     ]],
     float in_frequency = 8.0
     [[
@@ -66,81 +105,86 @@ shader as_maya_noise
         string widget = "slider",
         float slidermin = 0.0,
         float slidermax = 100.0,
-        string label = "Frequency"
+        string label = "Frequency",,
+        string page = "Noise Attributes",
+        int divider = 1
     ]],
-    float in_frequencyRatio = 2.0
+    float in_implode = 0.0
     [[
-        string as_maya_attribute_name = "frequencyRatio",
+        string as_maya_attribute_name = "implode",
+        float min = -1.0,
+        float max = 1.0,
         string widget = "slider",
-        float slidermin = 1.0,
-        float slidermax = 10.0,
-        string label = "Frequency Ratio"
+        float slidermin = -1.0,
+        float slidermax = 1.0,
+        string label = "Implode",
+        string page = "Noise Attributes"
     ]],
-    int in_inflection = 0
+    float in_implodeCenter[2] = {0.5, 0.5}
     [[
-        string as_maya_attribute_name = "inflection",
-        string widget = "checkBox",
-        string label = "Inflection"
-    ]],
-    float in_time = 0.0
-    [[
-        string as_maya_attribute_name = "time",
-        string label = "Time"
+        string as_maya_attribute_name = "implodeCenter",
+        string label = "Implode Center",,
+        string page = "Noise Attributes",
+        int divider = 1
     ]],
     int in_noiseType = 1
     [[
         string as_maya_attribute_name = "noiseType",
         string widget = "mapper",
         string options = "Perlin:0|Billow:1|Wave:2|Wispy:3|SpaceTime:4",
-        string label = "Noise Type"
+        string label = "Noise Type",
+        string page = "Noise Attributes"
     ]],
     float in_density = 1.0
     [[
         string as_maya_attribute_name = "density",
-        string label = "Density"
+        float min = 0.0,
+        float softmax = 1.0,
+        string label = "Density",
+        string page = "Noise Attributes"
     ]],
     float in_spottyness = 0.1
     [[
         string as_maya_attribute_name = "spottyness",
-        string label = "Spottyness"
+        float min = 0.0,
+        float softmax = 1.0,
+        string label = "Spottyness",
+        string page = "Noise Attributes"
     ]],
     float in_sizeRand = 0.0
     [[
         string as_maya_attribute_name = "sizeRand",
-        string label = "Size Randomness"
+        float min = 0.0,
+        float softmax = 1.0,
+        string label = "Size Randomness",
+        string page = "Noise Attributes"
     ]],
     float in_randomness = 1.0
     [[
         string as_maya_attribute_name = "randomness",
-        string label = "Randomness"
+        float min = 0.0,
+        float softmax = 1.0,
+        string label = "Randomness",
+        string page = "Noise Attributes"
     ]],
     int in_falloff = 2
     [[
         string as_maya_attribute_name = "falloff",
         string widget = "mapper",
         string options = "Linear:0|Smooth:1|Fast:2|Bubble:3",
-        string label = "Falloff"
+        string label = "Falloff",
+        string page = "Noise Attributes"
     ]],
     int in_numWaves = 5
     [[
         string as_maya_attribute_name = "numWaves",
+        int min = 1,
+        int max = 20,
         string widget = "slider",
         int slidermin = 1,
         int slidermax = 20,
-        string label = "Number of Waves"
-    ]],
-    float in_implode = 0.0
-    [[
-        string as_maya_attribute_name = "implode",
-        string widget = "slider",
-        float slidermin = -1.0,
-        float slidermax = 1.0,
-        string label = "Implode"
-    ]],
-    float in_implodeCenter[2] = {0.5, 0.5}
-    [[
-        string as_maya_attribute_name = "implodeCenter",
-        string label = "Implode Center"
+        string label = "Number of Waves",
+        string page = "Noise Attributes"
     ]],
 
     MAYA_COLORBALANCE_PARAMETERS,
@@ -249,7 +293,7 @@ shader as_maya_noise
         }
         else if (in_noiseType == 2)
         {
-            val = maya_waves_noise(
+            val = maya_waves_noise_2d(
                 coords,
                 in_amplitude,
                 in_time,

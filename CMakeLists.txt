@@ -108,9 +108,7 @@ option (WITH_STUDIO                         "Build appleseed.studio"            
 option (WITH_TOOLS                          "Build appleseed tools"                                 ON)
 option (WITH_PYTHON                         "Build Python bindings"                                 ON)
 option (WITH_DISNEY_MATERIAL                "Build Disney material"                                 OFF)
-option (WITH_PARTIO                         "Build Partio support (used in unit tests)"             OFF)
 
-option (USE_CPP11                           "Use C++11"                                             OFF)
 option (USE_STATIC_BOOST                    "Use static Boost libraries"                            ON)
 option (USE_STATIC_OIIO                     "Use static OpenImageIO libraries"                      ON)
 option (USE_STATIC_OSL                      "Use static OpenShadingLanguage libraries"              ON)
@@ -136,13 +134,6 @@ elseif (TARGET_ARCH MATCHES "PPC")
     option (USE_ALTIVEC                     "Use AltiVec instruction set"                           OFF)
 else ()
     # Unknown architecture: No SIMD.
-endif ()
-
-if (USE_CPP11)
-    message ("Building in C++11 mode.")
-    add_definitions (-DAPPLESEED_USE_CPP11)
-else ()
-    message ("Building in C++03 mode.")
 endif ()
 
 
@@ -175,7 +166,7 @@ endif ()
 #--------------------------------------------------------------------------------------------------
 
 set (appleseed_version_major    1)
-set (appleseed_version_minor    7)
+set (appleseed_version_minor    8)
 set (appleseed_version_patch    0)
 set (appleseed_version_maturity beta)
 
@@ -199,9 +190,9 @@ find_package (Boost 1.55 REQUIRED ${BOOST_NEEDED_LIBS})
 
 add_definitions (-DBOOST_FILESYSTEM_VERSION=3 -DBOOST_FILESYSTEM_NO_DEPRECATED)
 
-if (USE_CPP11)
-    # Workaround for undefined reference to boost::filesystem::detail::copy_file
-    # link error when building in C++11 mode.
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # Workaround for undefined reference to boost::filesystem::detail::copy_file link error
+    # on Linux and macOS if Boost is built in C++03 mode.
     add_definitions (-DBOOST_NO_CXX11_SCOPED_ENUMS)
 endif ()
 
@@ -255,11 +246,6 @@ if (WITH_DISNEY_MATERIAL)
     endif ()
 endif ()
 
-if (WITH_PARTIO)
-    add_definitions (-DAPPLESEED_WITH_PARTIO)
-    find_package (Partio REQUIRED)
-endif ()
-
 
 #--------------------------------------------------------------------------------------------------
 # Include paths.
@@ -269,7 +255,6 @@ endif ()
 include_directories (
     src/appleseed
     src/lz4
-    ${PYTHON_INCLUDE_DIRS}
 )
 
 if (USE_EXTERNAL_ZLIB)
@@ -327,10 +312,6 @@ if (WITH_DISNEY_MATERIAL)
     else ()
         include_directories (${APPLESEED_DEPS_STAGE_DIR}/SeExpr-debug/include)
     endif ()
-endif ()
-
-if (WITH_PARTIO)
-    include_directories (${PARTIO_INCLUDE_DIRS})
 endif ()
 
 
@@ -566,12 +547,31 @@ if (WITH_CLI)
     add_subdirectory (src/appleseed.cli)
 endif ()
 
-if (WITH_STUDIO)
-    add_subdirectory (src/appleseed.studio)
+if (WITH_PYTHON)
+    find_package (PythonLibs REQUIRED)
+
+    # Splitting version string into list.
+    string (REGEX MATCHALL "[0123456789]+" PYTHON_VERSION_LIST "${PYTHONLIBS_VERSION_STRING}")
+
+    if (PYTHON_VERSION_LIST)
+        # Accessing major and minor version numbers with the version list we got.
+        list (GET PYTHON_VERSION_LIST 0 PYTHON_MAJOR_VERSION)
+        list (GET PYTHON_VERSION_LIST 1 PYTHON_MINOR_VERSION)
+    else ()
+        # Default to latest Python 2 release if version string cannot be read.
+        message (STATUS "Cannot find Python version. Using 2.7 by default")
+        set (PYTHON_MAJOR_VERSION "2")
+        set (PYTHON_MINOR_VERSION "7")
+    endif ()
+
+    add_subdirectory (src/appleseed.python)
 endif ()
 
-if (WITH_PYTHON)
-    add_subdirectory (src/appleseed.python)
+if (WITH_STUDIO)
+    if (NOT WITH_PYTHON)
+        message (FATAL_ERROR "WITH_PYTHON should be \"ON\" to build appleseed.studio")
+    endif ()
+    add_subdirectory (src/appleseed.studio)
 endif ()
 
 if (WITH_TOOLS)

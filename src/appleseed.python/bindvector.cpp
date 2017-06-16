@@ -27,11 +27,9 @@
 // THE SOFTWARE.
 //
 
-// appleseed.python headers.
-#include "pyseed.h" // has to be first, to avoid redefinition warnings
-
 // appleseed.foundation headers.
 #include "foundation/math/vector.h"
+#include "foundation/platform/python.h"
 #include "foundation/utility/iostreamop.h"
 
 // Standard headers.
@@ -53,7 +51,7 @@ namespace
             bpy::throw_error_already_set();
         }
 
-        auto_ptr<Vector<T, N> > r(new Vector<T, N>());
+        auto_ptr<Vector<T, N>> r(new Vector<T, N>());
 
         for (size_t i = 0; i < N; ++i)
         {
@@ -193,7 +191,7 @@ namespace
     template <typename T, size_t N>
     void do_bind_vector(const char* class_name)
     {
-        bpy::class_<Vector<T, N> >(class_name)
+        bpy::class_<Vector<T, N>>(class_name)
             .def(bpy::init<>())
             .def(bpy::init<T>())
             .def("__init__", bpy::make_constructor(&VectorHelper<T, N>::construct))

@@ -28,7 +28,6 @@
 //
 
 // appleseed.python headers.
-#include "pyseed.h" // has to be first, to avoid redefinition warnings
 #include "bindentitycontainers.h"
 #include "dict2dict.h"
 
@@ -36,6 +35,7 @@
 #include "renderer/api/object.h"
 
 // appleseed.foundation headers.
+#include "foundation/platform/python.h"
 #include "foundation/utility/searchpaths.h"
 
 // Standard headers.
@@ -195,7 +195,7 @@ void bind_mesh_object()
         .def("push_material_slot", &MeshObject::push_material_slot)
         ;
 
-    boost::python::implicitly_convertible<auto_release_ptr<MeshObject>, auto_release_ptr<Object> >();
+    boost::python::implicitly_convertible<auto_release_ptr<MeshObject>, auto_release_ptr<Object>>();
 
     bpy::class_<MeshObjectReader>("MeshObjectReader", bpy::no_init)
         .def("read", read_mesh_objects).staticmethod("read")

@@ -138,17 +138,6 @@ source_group ("include\\appleseed\\pattern" FILES
     ${include_appleseed_pattern_sources}
 )
 
-set (include_alshaders_sources
-    include/alshaders/remap.h
-    include/alshaders/space.h
-)
-list (APPEND osl_headers
-    ${include_alshaders_sources}
-)
-source_group ("include\\alshaders" FILES
-    ${include_alshaders_sources}
-)
-
 
 #--------------------------------------------------------------------------------------------------
 # Source files.
@@ -317,6 +306,7 @@ set (src_maya_sources
      src/maya/as_maya_areaLight.osl
      src/maya/as_maya_blendColors.osl
      src/maya/as_maya_blinn.osl
+     src/maya/as_maya_brownian.osl
      src/maya/as_maya_bulge.osl
      src/maya/as_maya_bump2d.osl
      src/maya/as_maya_bump3d.osl
@@ -332,6 +322,7 @@ set (src_maya_sources
      src/maya/as_maya_components2Vector.osl
      src/maya/as_maya_condition.osl
      src/maya/as_maya_contrast.osl
+     src/maya/as_maya_crater.osl
      src/maya/as_maya_distanceBetween.osl
      src/maya/as_maya_doubleShadingSwitch.osl
      src/maya/as_maya_envChrome.osl
@@ -339,12 +330,14 @@ set (src_maya_sources
      src/maya/as_maya_fourByFourMatrix.osl
      src/maya/as_maya_fractal.osl
      src/maya/as_maya_gammaCorrect.osl
+     src/maya/as_maya_granite.osl
      src/maya/as_maya_grid.osl
      src/maya/as_maya_hsvToRgb.osl
      src/maya/as_maya_lambert.osl
      src/maya/as_maya_layeredTexture.osl
      src/maya/as_maya_luminance.osl
      src/maya/as_maya_mandelbrot.osl
+     src/maya/as_maya_marble.osl
      src/maya/as_maya_matrixInverse.osl
      src/maya/as_maya_mountain.osl
      src/maya/as_maya_movie.osl
@@ -365,17 +358,23 @@ set (src_maya_sources
      src/maya/as_maya_remapValue.osl
      src/maya/as_maya_reverse.osl
      src/maya/as_maya_rgbToHsv.osl
+     src/maya/as_maya_rock.osl
      src/maya/as_maya_samplerInfo.osl
      src/maya/as_maya_setRange.osl
      src/maya/as_maya_singleShadingSwitch.osl
+     src/maya/as_maya_snow.osl
+     src/maya/as_maya_solidFractal.osl
      src/maya/as_maya_stencil.osl
+     src/maya/as_maya_stucco.osl
      src/maya/as_maya_texture2Surface.osl
      src/maya/as_maya_transposeMatrix.osl
      src/maya/as_maya_tripleShadingSwitch.osl
      src/maya/as_maya_uv2Components.osl
      src/maya/as_maya_vector2Components.osl
      src/maya/as_maya_vectorProduct.osl
+     src/maya/as_maya_volumeNoise.osl
      src/maya/as_maya_water.osl
+     src/maya/as_maya_wood.osl
      src/maya/as_maya_wtAddMatrix.osl
 )
 list (APPEND osl_sources
@@ -385,40 +384,13 @@ source_group ("src\\maya" FILES
     ${src_maya_sources}
 )
 
-set (src_alshaders_sources
-    #src/alshaders/alBlackbody.osl
-    #src/alshaders/alCellNoise.osl
-    src/alshaders/alColorSpace.osl
-    src/alshaders/alCombineColor.osl
-    src/alshaders/alCombineFloat.osl
-    #src/alshaders/alCurvature.osl
-    #src/alshaders/alFlake.osl
-    src/alshaders/alFlowNoise.osl
-    src/alshaders/alFractal.osl
-    src/alshaders/alJitterColor.osl
-    src/alshaders/alLayerColor.osl
-    src/alshaders/alLayerFloat.osl
-    src/alshaders/alLayer.osl
-    src/alshaders/alPattern.osl
-    src/alshaders/alRemapColor.osl
-    src/alshaders/alRemapFloat.osl
-    src/alshaders/alSurface.osl
-    src/alshaders/alSwitchColor.osl
-    src/alshaders/alSwitchFloat.osl
-    #src/alshaders/alTriplanar.osl
-)
-list (APPEND osl_sources
-    ${src_alshaders_sources}
-)
-source_group ("src\\alshaders" FILES
-    ${src_alshaders_sources}
-)
-
 set (src_appleseed_sources
-     src/appleseed/asDisneyMaterial.osl
-     src/appleseed/asGlass.osl
-     src/appleseed/asVoronoi2D.osl
-     src/appleseed/asVoronoi3D.osl
+     src/appleseed/as_color_transform.osl
+     src/appleseed/as_disney_material.osl
+     src/appleseed/as_glass.osl
+     src/appleseed/as_luminance.osl
+     src/appleseed/as_voronoi2d.osl
+     src/appleseed/as_voronoi3d.osl
 )
 list (APPEND osl_sources
     ${src_appleseed_sources}

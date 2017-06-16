@@ -55,6 +55,7 @@
 #include "renderer/api/entity.h"
 #include "renderer/api/light.h"
 #include "renderer/api/material.h"
+#include "renderer/api/phasefunction.h"
 #include "renderer/api/project.h"
 #include "renderer/api/scene.h"
 #include "renderer/api/surfaceshader.h"
@@ -147,6 +148,10 @@ AssemblyItem::AssemblyItem(
                 EntityTraits<ObjectInstance>::get_human_readable_collection_type_name(),
                 assembly));
     m_object_instance_collection_item->add_items(assembly.object_instances());
+
+    insertChild(
+        11,
+        m_phase_function_collection_item = add_multi_model_collection_item<PhaseFunction>(assembly.phase_functions()));
 }
 
 QMenu* AssemblyItem::get_single_item_context_menu() const
@@ -167,6 +172,7 @@ QMenu* AssemblyItem::get_single_item_context_menu() const
     menu->addAction("Create Color...", &get_color_collection_item(), SLOT(slot_create()));
     menu->addAction("Create EDF...", m_edf_collection_item, SLOT(slot_create()));
     menu->addAction("Create Light...", m_light_collection_item, SLOT(slot_create()));
+    menu->addAction("Create Phase Function...", m_phase_function_collection_item, SLOT(slot_create()));
 
     QMenu* submenu = menu->addMenu("Create Material...");
     submenu->addAction("Create Disney Material...", m_material_collection_item, SLOT(slot_create_disney()));
@@ -215,6 +221,11 @@ void AssemblyItem::add_item(Object* object)
 void AssemblyItem::add_item(ObjectInstance* object_instance)
 {
     m_object_instance_collection_item->add_item(object_instance);
+}
+
+void AssemblyItem::add_item(PhaseFunction* phase_function)
+{
+    m_phase_function_collection_item->add_item(phase_function);
 }
 
 MaterialCollectionItem& AssemblyItem::get_material_collection_item() const
@@ -350,7 +361,7 @@ namespace
             collect_assembly_instances(assembly_instances, assembly_uid);
 
         // Remove assembly instances and their corresponding project items.
-        for (const_each<vector<UniqueID> > i = remove_list; i; ++i)
+        for (const_each<vector<UniqueID>> i = remove_list; i; ++i)
         {
             assembly_instances.remove(*i);
             delete item_registry.get_item(*i);

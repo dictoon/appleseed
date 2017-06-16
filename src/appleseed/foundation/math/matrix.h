@@ -44,10 +44,9 @@
 
 // Imath headers.
 #ifdef APPLESEED_ENABLE_IMATH_INTEROP
-#include "foundation/platform/exrheaderguards.h"
-BEGIN_EXR_INCLUDES
+#include "foundation/platform/_beginexrheaders.h"
 #include "OpenEXR/ImathMatrix.h"
-END_EXR_INCLUDES
+#include "foundation/platform/_endexrheaders.h"
 #endif
 
 // Standard headers.
@@ -107,7 +106,7 @@ class Matrix
 
 // Poisoning.
 template <typename T, size_t M, size_t N>
-class PoisonImpl<Matrix<T, M, N> >
+class PoisonImpl<Matrix<T, M, N>>
 {
   public:
     static void do_poison(Matrix<T, M, N>& m);
@@ -542,7 +541,7 @@ inline const T& Matrix<T, M, N>::operator()(const size_t row, const size_t col) 
 }
 
 template <typename T, size_t M, size_t N>
-void PoisonImpl<Matrix<T, M, N> >::do_poison(Matrix<T, M, N>& m)
+void PoisonImpl<Matrix<T, M, N>>::do_poison(Matrix<T, M, N>& m)
 {
     for (size_t i = 0; i < m.Components; ++i)
         poison(m[i]);

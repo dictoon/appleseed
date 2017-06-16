@@ -35,11 +35,11 @@
 //
 //   Visual Studio 2015   MSVC++ 14.0   _MSC_VER == 1900
 //   Visual Studio 2013   MSVC++ 12.0   _MSC_VER == 1800
-//   Visual Studio 2012   MSVC++ 11.0   _MSC_VER == 1700
-//   Visual Studio 2010   MSVC++ 10.0   _MSC_VER == 1600
-//   Visual Studio 2008   MSVC++ 9.0    _MSC_VER == 1500
-//   Visual Studio 2005   MSVC++ 8.0    _MSC_VER == 1400
-//   Visual Studio 2003   MSVC++ 7.1    _MSC_VER == 1310
+//   Visual Studio 2012   MSVC++ 11.0   _MSC_VER == 1700 (oldest supported version)
+//   Visual Studio 2010   MSVC++ 10.0   _MSC_VER == 1600 (unsupported)
+//   Visual Studio 2008   MSVC++ 9.0    _MSC_VER == 1500 (unsupported)
+//   Visual Studio 2005   MSVC++ 8.0    _MSC_VER == 1400 (unsupported)
+//   Visual Studio 2003   MSVC++ 7.1    _MSC_VER == 1310 (unsupported)
 //
 
 // appleseed.foundation headers.
@@ -51,8 +51,8 @@
 // Standard headers.
 #include <cstdarg>
 
-// Source code annotations are available starting with Visual Studio 2005.
-#if _MSC_VER >= 1400
+// Platform headers.
+#if defined _MSC_VER
 #include <sal.h>
 #endif
 
@@ -167,42 +167,6 @@ namespace foundation
 
 
 //
-// Define the APPLESEED_OVERRIDE qualifer as a synonym for the 'override' keyword in C++11.
-//
-
-// Visual C++: supported since Visual Studio 2010.
-#if _MSC_VER >= 1600
-    #define APPLESEED_OVERRIDE override
-
-// gcc: supported since gcc 4.7 when C++11 mode is enabled.
-#elif defined __GNUC__ && __cplusplus >= 201103
-    #define APPLESEED_OVERRIDE override
-
-// Other compilers: the APPLESEED_OVERRIDE qualifier has no effect.
-#else
-    #define APPLESEED_OVERRIDE
-#endif
-
-
-//
-// Define the APPLESEED_FINAL qualifier as a synonym for the 'final' keyword in C++11.
-//
-
-// Visual C++: supported since Visual Studio 2012.
-#if _MSC_VER >= 1700
-    #define APPLESEED_FINAL final
-
-// gcc: supported since gcc 4.7 when C++11 mode is enabled.
-#elif defined __GNUC__ && __cplusplus >= 201103
-    #define APPLESEED_FINAL final
-
-// Other compilers: the APPLESEED_FINAL qualifier has no effect.
-#else
-    #define APPLESEED_OVERRIDE
-#endif
-
-
-//
 //  A macro to provide the compiler with branch prediction information.
 //  Usage: replace if (cond) with if (APPLESEED_LIKELY(cond))
 //  Warning: programmers are notoriously bad at guessing this.
@@ -267,24 +231,6 @@ namespace foundation
 
 
 //
-// From https://ceres-solver.googlesource.com/ceres-solver/+/master/internal/ceres/stringprintf.cc:
-//
-// va_copy() was defined in the C99 standard. However, it did not appear in the
-// C++ standard until C++11. This means that if Ceres is being compiled with a
-// strict pre-C++11 standard (e.g. -std=c++03), va_copy() will NOT be defined,
-// as we are using the C++ compiler (it would however be defined if we were
-// using the C compiler). Note however that both GCC & Clang will in fact
-// define va_copy() when compiling for C++ if the C++ standard is not explicitly
-// specified (i.e. no -std=c++<XX> arg), even though it should not strictly be
-// defined unless -std=c++11 (or greater) was passed.
-//
-
-#if defined(__GNUC__) && !defined(va_copy)
-    #define va_copy(d, s) __va_copy(d, s)
-#endif
-
-
-//
 // Source code annotations.
 //
 // About APPLESEED_PRINTF_FMT and APPLESEED_PRINTF_FMT_ATTR() usage:
@@ -303,13 +249,8 @@ namespace foundation
 //
 
 // Visual C++: Visual Studio 2008+ annotations.
-#if _MSC_VER >= 1500
+#if defined _MSC_VER
     #define APPLESEED_PRINTF_FMT _Printf_format_string_
-    #define APPLESEED_PRINTF_FMT_ATTR(string_index, first_to_check)
-
-// Visual C++: Visual Studio 2005 annotations.
-#elif _MSC_VER >= 1400
-    #define APPLESEED_PRINTF_FMT __format_string
     #define APPLESEED_PRINTF_FMT_ATTR(string_index, first_to_check)
 
 // gcc.

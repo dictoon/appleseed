@@ -62,16 +62,14 @@
 #include "foundation/utility/test.h"
 
 // OSL headers.
-#include "foundation/platform/oslheaderguards.h"
-BEGIN_OSL_INCLUDES
+#include "foundation/platform/_beginoslheaders.h"
 #include "OSL/oslexec.h"
-END_OSL_INCLUDES
+#include "foundation/platform/_endoslheaders.h"
 
 // OpenImageIO headers.
-#include "foundation/platform/oiioheaderguards.h"
-BEGIN_OIIO_INCLUDES
+#include "foundation/platform/_beginoiioheaders.h"
 #include "OpenImageIO/texture.h"
-END_OIIO_INCLUDES
+#include "foundation/platform/_endoiioheaders.h"
 
 // Boost headers.
 #include "boost/bind.hpp"
@@ -110,29 +108,29 @@ TEST_SUITE(Renderer_Modeling_EnvironmentEDF)
             create_horizontal_gradient();
         }
 
-        virtual void release() APPLESEED_OVERRIDE
+        virtual void release() override
         {
             delete this;
         }
 
-        virtual const char* get_model() const APPLESEED_OVERRIDE
+        virtual const char* get_model() const override
         {
             return "horizontal_gradient_texture";
         }
 
-        virtual ColorSpace get_color_space() const APPLESEED_OVERRIDE
+        virtual ColorSpace get_color_space() const override
         {
             return ColorSpaceLinearRGB;
         }
 
-        virtual const CanvasProperties& properties() APPLESEED_OVERRIDE
+        virtual const CanvasProperties& properties() override
         {
             return m_props;
         }
 
         virtual Tile* load_tile(
             const size_t    tile_x,
-            const size_t    tile_y) APPLESEED_OVERRIDE
+            const size_t    tile_y) override
         {
             assert(tile_x == 0);
             assert(tile_y == 0);
@@ -143,7 +141,7 @@ TEST_SUITE(Renderer_Modeling_EnvironmentEDF)
         virtual void unload_tile(
             const size_t    tile_x,
             const size_t    tile_y,
-            const Tile*     tile) APPLESEED_OVERRIDE
+            const Tile*     tile) override
         {
         }
 
