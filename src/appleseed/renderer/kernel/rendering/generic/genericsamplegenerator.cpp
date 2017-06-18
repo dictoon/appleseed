@@ -171,6 +171,7 @@ namespace
             // Create a pixel context that identifies the pixel and sample currently being rendered.
             const PixelContext pixel_context(
                 Vector2i(m_window_origin_x + x, m_window_origin_y + y),
+                sequence_index,
                 sample_position);
 
             // Create a sampling context. We start with an initial dimension of 2,

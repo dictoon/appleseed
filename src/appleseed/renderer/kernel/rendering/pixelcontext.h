@@ -33,11 +33,14 @@
 // appleseed.foundation headers.
 #include "foundation/math/vector.h"
 
+// Standard headers.
+#include <cstddef>
+
 namespace renderer
 {
 
 //
-// This class identifies the pixel currently being rendered throughout the
+// This class identifies the pixel and sample currently being rendered throughout the
 // Tile Renderer -> Pixel Renderer -> Sample Renderer -> Surface Shader -> Lighting Engine chain.
 //
 
@@ -47,17 +50,22 @@ class PixelContext
     // Constructor.
     PixelContext(
         const foundation::Vector2i& pixel_coords,
+        const size_t                sample_id,
         const foundation::Vector2d& sample_position);
 
-    // Return pixel coordinates.
+    // Return the coordinates of the pixel being rendered.
     const foundation::Vector2i& get_pixel_coords() const;
 
-    // Return sample coordinates.
+    // Return the sample number within the pixel being rendered.
+    size_t get_sample_id() const;
+
+    // Return the coordinates (in NDC) of the sample being rendered.
     const foundation::Vector2d& get_sample_position() const;
 
   private:
-    const foundation::Vector2i  m_pixel_coords;
-    const foundation::Vector2d  m_sample_position;
+    const foundation::Vector2i      m_pixel_coords;
+    const size_t                    m_sample_id;
+    const foundation::Vector2d      m_sample_position;
 };
 
 
@@ -66,9 +74,11 @@ class PixelContext
 //
 
 inline PixelContext::PixelContext(
-    const foundation::Vector2i& pixel_coords,
-    const foundation::Vector2d& sample_position)
+    const foundation::Vector2i&     pixel_coords,
+    const size_t                    sample_id,
+    const foundation::Vector2d&     sample_position)
   : m_pixel_coords(pixel_coords)
+  , m_sample_id(sample_id)
   , m_sample_position(sample_position)
 {
 }
@@ -76,6 +86,11 @@ inline PixelContext::PixelContext(
 inline const foundation::Vector2i& PixelContext::get_pixel_coords() const
 {
     return m_pixel_coords;
+}
+
+inline size_t PixelContext::get_sample_id() const
+{
+    return m_sample_id;
 }
 
 inline const foundation::Vector2d& PixelContext::get_sample_position() const

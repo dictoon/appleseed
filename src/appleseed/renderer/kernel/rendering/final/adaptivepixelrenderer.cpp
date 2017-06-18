@@ -211,7 +211,10 @@ namespace
                     const Vector2d sample_position = frame.get_sample_position(pi.x + s.x, pi.y + s.y);
 
                     // Create a pixel context that identifies the pixel and sample currently being rendered.
-                    const PixelContext pixel_context(pi, sample_position);
+                    const PixelContext pixel_context(
+                        pi,
+                        trackers[0].get_size(),
+                        sample_position);
 
                     // Render the sample.
                     ShadingResult shading_result(aov_count);

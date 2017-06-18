@@ -150,7 +150,7 @@ namespace
                     const Vector2d sample_position = frame.get_sample_position(pi.x + s.x, pi.y + s.y);
 
                     // Create a pixel context that identifies the pixel and sample currently being rendered.
-                    const PixelContext pixel_context(pi, sample_position);
+                    const PixelContext pixel_context(pi, i, sample_position);
 
                     // Render the sample.
                     ShadingResult shading_result(aov_count);
@@ -193,7 +193,10 @@ namespace
                         const Vector2d sample_position = frame.get_sample_position(s.x, s.y);
 
                         // Create a pixel context that identifies the pixel and sample currently being rendered.
-                        const PixelContext pixel_context(pi, sample_position);
+                        const PixelContext pixel_context(
+                            pi,
+                            sy * m_sqrt_sample_count + sx,
+                            sample_position);
 
                         // Create a sampling context. We start with an initial dimension of 1,
                         // as this seems to give less correlation artifacts than when the

@@ -52,6 +52,7 @@
 // appleseed.foundation headers.
 #include "foundation/core/concepts/noncopyable.h"
 #include "foundation/math/dual.h"
+#include "foundation/math/hash.h"
 #include "foundation/math/ray.h"
 #include "foundation/math/rr.h"
 #include "foundation/math/sampling/mappings.h"
@@ -80,6 +81,7 @@ class PathTracer
     PathTracer(
         PathVisitor&            path_visitor,
         VolumeVisitor&          volume_visitor,
+        const size_t            path_id,
         const size_t            rr_min_path_length,
         const size_t            max_bounces,
         const size_t            max_diffuse_bounces,
@@ -111,6 +113,7 @@ class PathTracer
   private:
     PathVisitor&                m_path_visitor;
     VolumeVisitor&              m_volume_visitor;
+    const size_t                m_path_id;
     const size_t                m_rr_min_path_length;
     const size_t                m_max_bounces;
     const size_t                m_max_diffuse_bounces;
@@ -148,6 +151,7 @@ template <typename PathVisitor, typename VolumeVisitor, bool Adjoint>
 inline PathTracer<PathVisitor, VolumeVisitor, Adjoint>::PathTracer(
     PathVisitor&                path_visitor,
     VolumeVisitor&              volume_visitor,
+    const size_t                path_id,
     const size_t                rr_min_path_length,
     const size_t                max_bounces,
     const size_t                max_diffuse_bounces,
@@ -157,6 +161,7 @@ inline PathTracer<PathVisitor, VolumeVisitor, Adjoint>::PathTracer(
     const double                near_start)
   : m_path_visitor(path_visitor)
   , m_volume_visitor(volume_visitor)
+  , m_path_id(path_id)
   , m_rr_min_path_length(rr_min_path_length)
   , m_max_bounces(max_bounces)
   , m_max_diffuse_bounces(max_diffuse_bounces)
@@ -453,16 +458,26 @@ size_t PathTracer<PathVisitor, VolumeVisitor, Adjoint>::trace(
         vertex.m_cos_on = foundation::dot(vertex.m_outgoing.get_value(), vertex.get_shading_normal());
         m_path_visitor.on_hit(vertex);
 
+        // Honor the global bounce limit.
+        const size_t bounces = vertex.m_path_length - 1;
+        if (bounces == m_max_bounces)
+            break;
+
         // Use Russian Roulette to cut the path without introducing bias.
+        // todo: don't do RR unless the path throughput is below a threshold.
         float scattering_prob;
         if (vertex.m_path_length > m_rr_min_path_length)
         {
             // Generate a uniform sample in [0,1).
-            sampling_context.split_in_place(1, 1);
-            const float s = sampling_context.next2<float>();
+            // Don't stratify Russian Roulette samples. This avoids wasting a sampling dimension.
+            const float s =
+                2.3283063e-010f *
+                foundation::hash_uint32(
+                    static_cast<foundation::uint32>(bounces ^ m_path_id));
 
             // Compute the probability of extending this path.
             // todo: make max scattering prob lower (0.99) to avoid getting stuck?
+            // todo: use an approximate luminance value?
             scattering_prob = std::min(foundation::max_value(vertex.m_throughput), 1.0f);
 
             // Russian Roulette.
@@ -473,11 +488,6 @@ size_t PathTracer<PathVisitor, VolumeVisitor, Adjoint>::trace(
             assert(scattering_prob > 0.0f);
             vertex.m_throughput /= scattering_prob;
         }
-
-        // Honor the global bounce limit.
-        const size_t bounces = vertex.m_path_length - 1;
-        if (bounces == m_max_bounces)
-            break;
 
         // Terminate the path if no above-surface scattering possible.
         if (vertex.m_bsdf == 0 && material->get_render_data().m_phase_function == 0)

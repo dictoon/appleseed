@@ -38,6 +38,7 @@
 #include "renderer/kernel/lighting/pathtracer.h"
 #include "renderer/kernel/lighting/pathvertex.h"
 #include "renderer/kernel/lighting/scatteringmode.h"
+#include "renderer/kernel/rendering/pixelcontext.h"
 #include "renderer/kernel/shading/shadingcontext.h"
 #include "renderer/kernel/shading/shadingpoint.h"
 #include "renderer/modeling/bsdf/bsdf.h"
@@ -49,6 +50,7 @@
 #include "renderer/utility/stochasticcast.h"
 
 // appleseed.foundation headers.
+#include "foundation/math/hash.h"
 #include "foundation/math/mis.h"
 #include "foundation/math/population.h"
 #include "foundation/math/vector.h"
@@ -212,6 +214,7 @@ namespace
             {
                 do_compute_lighting<PathVisitorNextEventEstimation>(
                     sampling_context,
+                    pixel_context,
                     shading_context,
                     shading_point,
                     radiance);
@@ -220,6 +223,7 @@ namespace
             {
                 do_compute_lighting<PathVisitorSimple>(
                     sampling_context,
+                    pixel_context,
                     shading_context,
                     shading_point,
                     radiance);
@@ -229,6 +233,7 @@ namespace
         template <typename PathVisitor>
         void do_compute_lighting(
             SamplingContext&        sampling_context,
+            const PixelContext&     pixel_context,
             const ShadingContext&   shading_context,
             const ShadingPoint&     shading_point,
             Spectrum&               radiance)               // output radiance, in W.sr^-1.m^-2
@@ -241,11 +246,18 @@ namespace
                 shading_point.get_scene(),
                 radiance);
 
-            VolumeVisitor volume_visitor;
+            const Vector2i& pixel = pixel_context.get_pixel_coords();
+            const size_t path_id =
+                mix_uint32(
+                    static_cast<uint32>(pixel.x),
+                    static_cast<uint32>(pixel.y),
+                    static_cast<uint32>(pixel_context.get_sample_id()));
 
+            VolumeVisitor volume_visitor;
             PathTracer<PathVisitor, VolumeVisitor, false> path_tracer(     // false = not adjoint
                 path_visitor,
                 volume_visitor,
+                path_id,
                 m_params.m_rr_min_path_length,
                 m_params.m_max_bounces == ~0 ? ~0 : m_params.m_max_bounces + 1,
                 m_params.m_max_diffuse_bounces == ~0 ? ~0 : m_params.m_max_diffuse_bounces + 1,
