@@ -221,6 +221,9 @@ namespace
 
                     m_aov_accumulators.flush(shading_result);
 
+                    if (shading_result.m_main.m_color.size() < 3)
+                        Spectrum::upgrade2(shading_result.m_main.m_color, shading_result.m_main.m_color, 3);
+
                     // Transform the result to the linear RGB color space.
                     shading_result.transform_to_linear_rgb(m_lighting_conditions);
 

@@ -96,9 +96,7 @@ void BeautyAOVAccumulator::set(const Spectrum& value)
 void BeautyAOVAccumulator::set(const Color3f& color)
 {
     m_color_space = ColorSpaceLinearRGB;
-    m_color[0] = color[0];
-    m_color[1] = color[1];
-    m_color[2] = color[2];
+    m_color = color;
 }
 
 void BeautyAOVAccumulator::set_to_pink_linear_rgb()
@@ -113,8 +111,7 @@ void BeautyAOVAccumulator::apply_multiplier(const float multiplier)
 
 void BeautyAOVAccumulator::reset()
 {
-    m_color_space = ColorSpaceLinearRGB;
-    m_color.set(0.0f);
+    set(Color3f(0.0f));
 }
 
 void BeautyAOVAccumulator::write(

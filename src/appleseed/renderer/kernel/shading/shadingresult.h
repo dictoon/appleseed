@@ -99,6 +99,11 @@ class ShadingResult
 inline ShadingResult::ShadingResult(const size_t aov_count)
   : m_aovs(aov_count)
 {
+    m_main.m_color.resize(3);
+
+    for (size_t i = 0, e = m_aovs.size(); i < e; ++i)
+        m_aovs[i].m_color.resize(3);
+
 #ifdef DEBUG
     poison(*this);
 #endif

@@ -72,12 +72,18 @@ class DynamicSpectrum
         Illuminance = 1     // this spectrum represents an illuminance in [0, infinity)^N
     };
 
+    typedef int SizeAndIntentTag;
+
     // Constructors.
-    explicit DynamicSpectrum(const Intent intent = Reflectance);                    // set size to 3, leave all components uninitialized
+    explicit DynamicSpectrum(const Intent intent = Reflectance);                    // set size to 0, leave all components uninitialized
+    DynamicSpectrum(
+        const size_t        size,
+        const Intent        intent,
+        SizeAndIntentTag    tag);
     explicit DynamicSpectrum(                                                       // set size to N, initialize with array of N scalars
         const ValueType*    rhs,
         const Intent        intent = Reflectance);
-    explicit DynamicSpectrum(                                                       // set size to 3, set all components to 'val'
+    explicit DynamicSpectrum(                                                       // set size to 1, set all components to 'val'
         const ValueType     val,
         const Intent        intent = Reflectance);
     DynamicSpectrum(                                                                // set size to 3
@@ -94,6 +100,9 @@ class DynamicSpectrum
     // Assignment operators.
     DynamicSpectrum& operator=(const foundation::Color<ValueType, 3>& rhs);
     DynamicSpectrum& operator=(const foundation::RegularSpectrum<ValueType, N>& rhs);
+
+    // Return true if this spectrum currently stores a scalar value.
+    bool is_scalar() const;
 
     // Return true if this spectrum currently stores a linear RGB value.
     bool is_rgb() const;
@@ -134,6 +143,24 @@ class DynamicSpectrum
         const DynamicSpectrum&                  source,
         DynamicSpectrum&                        dest);
 
+    static void make_compatible(
+        const DynamicSpectrum*&                 a_out,
+        const DynamicSpectrum*&                 b_out,
+        const DynamicSpectrum&                  a,
+        const DynamicSpectrum&                  b,
+        DynamicSpectrum&                        scratch);
+
+    static void make_compatible_in_place(
+        const DynamicSpectrum*&                 b_out,
+        DynamicSpectrum&                        a,
+        const DynamicSpectrum&                  b,
+        DynamicSpectrum&                        scratch);
+
+    static void upgrade2(
+        DynamicSpectrum&                        dest,
+        const DynamicSpectrum&                  source,
+        const size_t                            size);
+
     // Downgrade a spectrum from spectral to RGB. Returns dest.
     // 'source' and 'dest' can reference the same instance.
     static DynamicSpectrum& downgrade(
@@ -146,6 +173,36 @@ class DynamicSpectrum
     foundation::uint16              m_size;
     foundation::uint16              m_intent;
 };
+
+#define MAKE_COMPATIBLE(a_out, b_out, a, b)                     \
+    DynamicSpectrum<T, N> scratch_##__LINE__;                   \
+    const DynamicSpectrum<T, N>* a_out_##__LINE__;              \
+    const DynamicSpectrum<T, N>* b_out_##__LINE__;              \
+    DynamicSpectrum<T, N>::make_compatible(                     \
+        a_out_##__LINE__,                                       \
+        b_out_##__LINE__,                                       \
+        a, b,                                                   \
+        scratch_##__LINE__);                                    \
+    const DynamicSpectrum<T, N>& a_out = *a_out_##__LINE__;     \
+    const DynamicSpectrum<T, N>& b_out = *b_out_##__LINE__
+
+#define MAKE_COMPATIBLE_LHS_IN_PLACE(b_out, a, b)               \
+    DynamicSpectrum<T, N> scratch_##__LINE__;                   \
+    const DynamicSpectrum<T, N>* b_out_##__LINE__;              \
+    DynamicSpectrum<T, N>::make_compatible_in_place(            \
+        b_out_##__LINE__,                                       \
+        a, b,                                                   \
+        scratch_##__LINE__);                                    \
+    const DynamicSpectrum<T, N>& b_out = *b_out_##__LINE__
+
+#define MAKE_COMPATIBLE_LHS_IN_PLACE_31F(b_out, a, b)           \
+    DynamicSpectrum<float, 31> scratch_##__LINE__;              \
+    const DynamicSpectrum<float, 31>* b_out_##__LINE__;         \
+    DynamicSpectrum<float, 31>::make_compatible_in_place(       \
+        b_out_##__LINE__,                                       \
+        a, b,                                                   \
+        scratch_##__LINE__);                                    \
+    const DynamicSpectrum<float, 31>& b_out = *b_out_##__LINE__
 
 // Combine intents of multiple spectra.
 template <typename T, size_t N>
@@ -287,9 +344,10 @@ namespace renderer
 
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N>::DynamicSpectrum(const Intent intent)
-  : m_size(3)
+  : m_size(0)
   , m_intent(static_cast<foundation::uint16>(intent))
 {
+    // Clear padding.
     for (size_t i = N; i < StoredSamples; ++i)
         m_samples[i] = T(0.0);
 }
@@ -304,17 +362,19 @@ inline DynamicSpectrum<T, N>::DynamicSpectrum(const ValueType* rhs, const Intent
     for (size_t i = 0; i < N; ++i)
         m_samples[i] = rhs[i];
 
+    // Clear padding.
     for (size_t i = N; i < StoredSamples; ++i)
         m_samples[i] = T(0.0);
 }
 
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N>::DynamicSpectrum(const ValueType val, const Intent intent)
-  : m_size(3)
+  : m_size(val == 0.0f ? 0 : 1)
   , m_intent(static_cast<foundation::uint16>(intent))
 {
     set(val);
 
+    // Clear padding.
     for (size_t i = N; i < StoredSamples; ++i)
         m_samples[i] = T(0.0);
 }
@@ -328,6 +388,7 @@ inline DynamicSpectrum<T, N>::DynamicSpectrum(const foundation::Color<ValueType,
     m_samples[1] = rhs[1];
     m_samples[2] = rhs[2];
 
+    // Clear padding.
     for (size_t i = N; i < StoredSamples; ++i)
         m_samples[i] = T(0.0);
 }
@@ -340,6 +401,7 @@ inline DynamicSpectrum<T, N>::DynamicSpectrum(const foundation::RegularSpectrum<
     for (size_t i = 0; i < N; ++i)
         m_samples[i] = rhs[i];
 
+    // Clear padding.
     for (size_t i = N; i < StoredSamples; ++i)
         m_samples[i] = T(0.0);
 }
@@ -353,6 +415,17 @@ inline DynamicSpectrum<T, N>::DynamicSpectrum(const DynamicSpectrum<U, N>& rhs)
     for (size_t i = 0; i < m_size; ++i)
         m_samples[i] = static_cast<ValueType>(rhs[i]);
 
+    // Clear padding.
+    for (size_t i = N; i < StoredSamples; ++i)
+        m_samples[i] = T(0.0);
+}
+
+template <typename T, size_t N>
+inline DynamicSpectrum<T, N>::DynamicSpectrum(const size_t size, const Intent intent, SizeAndIntentTag tag)
+  : m_size(static_cast<foundation::uint16>(size))
+  , m_intent(static_cast<foundation::uint16>(intent))
+{
+    // Clear padding.
     for (size_t i = N; i < StoredSamples; ++i)
         m_samples[i] = T(0.0);
 }
@@ -385,6 +458,12 @@ inline DynamicSpectrum<T, N>& DynamicSpectrum<T, N>::operator=(const foundation:
 }
 
 template <typename T, size_t N>
+inline bool DynamicSpectrum<T, N>::is_scalar() const
+{
+    return m_size == 1;
+}
+
+template <typename T, size_t N>
 inline bool DynamicSpectrum<T, N>::is_rgb() const
 {
     return m_size == 3;
@@ -405,7 +484,7 @@ inline size_t DynamicSpectrum<T, N>::size() const
 template <typename T, size_t N>
 inline void DynamicSpectrum<T, N>::resize(const size_t size)
 {
-    assert(size == 3 || size == N);
+    assert(size == 0 || size == 1 || size == 3 || size == N);
     m_size = static_cast<foundation::uint16>(size);
 }
 
@@ -424,7 +503,13 @@ inline typename DynamicSpectrum<T, N>::Intent DynamicSpectrum<T, N>::get_intent(
 template <typename T, size_t N>
 inline void DynamicSpectrum<T, N>::set(const ValueType val)
 {
-    for (size_t i = 0; i < m_size; ++i)
+    if (m_size == 0 && val == T(0.0))
+        return;
+
+    if (m_size == 0)
+        m_size = 1;
+
+    for (size_t i = 0, e = m_size; i < e; ++i)
         m_samples[i] = val;
 }
 
@@ -433,6 +518,12 @@ inline void DynamicSpectrum<T, N>::set(const ValueType val)
 template <>
 APPLESEED_FORCE_INLINE void DynamicSpectrum<float, 31>::set(const float val)
 {
+    if (m_size == 0 && val == 0.0f)
+        return;
+
+    if (m_size == 0)
+        m_size = 1;
+
     const __m128 mval = _mm_set1_ps(val);
 
     _mm_store_ps(&m_samples[ 0], mval);
@@ -468,19 +559,22 @@ inline const T& DynamicSpectrum<T, N>::operator[](const size_t i) const
 template <typename T, size_t N>
 inline foundation::Color<T, 3>& DynamicSpectrum<T, N>::rgb()
 {
+    assert(m_size == 3);
     return reinterpret_cast<foundation::Color<T, 3>&>(m_samples);
 }
 
 template <typename T, size_t N>
 inline const foundation::Color<T, 3>& DynamicSpectrum<T, N>::rgb() const
 {
+    assert(m_size == 3);
     return reinterpret_cast<const foundation::Color<T, 3>&>(m_samples);
 }
 
 template <typename T, size_t N>
 inline foundation::Color<T, 3> DynamicSpectrum<T, N>::convert_to_rgb(
-    const foundation::LightingConditions& lighting_conditions) const
+    const foundation::LightingConditions&   lighting_conditions) const
 {
+    assert(m_size == N);
     return
         foundation::ciexyz_to_linear_rgb(
             foundation::spectrum_to_ciexyz<float>(lighting_conditions, *this));
@@ -516,6 +610,121 @@ inline DynamicSpectrum<T, N>& DynamicSpectrum<T, N>::upgrade(
         dest = source;
 
     return dest;
+}
+
+template <typename T, size_t N>
+inline void DynamicSpectrum<T, N>::make_compatible(
+    const DynamicSpectrum*&                 a_out,
+    const DynamicSpectrum*&                 b_out,
+    const DynamicSpectrum&                  a,
+    const DynamicSpectrum&                  b,
+    DynamicSpectrum&                        scratch)
+{
+    if (a.size() == b.size())
+    {
+        a_out = &a;
+        b_out = &b;
+        return;
+    }
+
+    if (a.size() < b.size())
+    {
+        upgrade2(scratch, a, b.size());
+        a_out = &scratch;
+        b_out = &b;
+    }
+    else
+    {
+        upgrade2(scratch, b, a.size());
+        a_out = &a;
+        b_out = &scratch;
+    }
+}
+
+template <typename T, size_t N>
+inline void DynamicSpectrum<T, N>::make_compatible_in_place(
+    const DynamicSpectrum*&                 b_out,
+    DynamicSpectrum&                        a,
+    const DynamicSpectrum&                  b,
+    DynamicSpectrum&                        scratch)
+{
+    if (a.size() == b.size())
+    {
+        b_out = &b;
+        return;
+    }
+
+    if (a.size() < b.size())
+    {
+        upgrade2(a, a, b.size());
+        b_out = &b;
+    }
+    else
+    {
+        upgrade2(scratch, b, a.size());
+        b_out = &scratch;
+    }
+}
+
+template <typename T, size_t N>
+inline void DynamicSpectrum<T, N>::upgrade2(
+    DynamicSpectrum&                        dest,
+    const DynamicSpectrum&                  source,
+    const size_t                            size)
+{
+    // source and dest might be the same object.
+
+    assert(source.size() < size);
+
+    switch (source.size())
+    {
+      // 0 sample -> 1, 3 or N samples
+      case 0:
+        {
+            assert(size == 1 || size == 3 || size == N);
+            dest.resize(size);
+            dest.m_intent = source.m_intent;
+            for (size_t i = 0; i < size; ++i)
+                dest.m_samples[i] = T(0.0);
+        }
+        break;
+
+      // 1 sample -> 3 or N samples.
+      case 1:
+        {
+            assert(size == 3 || size == N);
+            dest.resize(size);
+            dest.m_intent = source.m_intent;
+            const float val = source.m_samples[0];
+            for (size_t i = 0; i < size; ++i)
+                dest.m_samples[i] = val;
+        }
+        break;
+
+      // Necessarily 3 samples -> N samples.
+      default:
+        {
+            assert(source.size() == 3);
+            assert(size == N);
+            dest.resize(N);
+            if (source.get_intent() == Reflectance)
+            {
+                dest.set_intent(Reflectance);
+                foundation::linear_rgb_reflectance_to_spectrum(
+                    reinterpret_cast<const foundation::Color<ValueType, 3>&>(source[0]),
+                    reinterpret_cast<foundation::RegularSpectrum<ValueType, N>&>(dest[0]));
+            }
+            else
+            {
+                assert(source.get_intent() == Illuminance);
+                dest.set_intent(Illuminance);
+                foundation::linear_rgb_illuminance_to_spectrum(
+                    reinterpret_cast<const foundation::Color<ValueType, 3>&>(source[0]),
+                    reinterpret_cast<foundation::RegularSpectrum<ValueType, N>&>(dest[0]));
+            }
+        }
+        break;
+    }
 }
 
 template <typename T, size_t N>
@@ -591,26 +800,12 @@ inline DynamicSpectrum<T, N> operator+(const DynamicSpectrum<T, N>& lhs, const D
 {
     assert(lhs.get_intent() == rhs.get_intent());
 
-    DynamicSpectrum<T, N> result;
+    MAKE_COMPATIBLE(clhs, crhs, lhs, rhs);
 
-    if (lhs.size() == rhs.size())
-    {
-        result.resize(lhs.size());
+    DynamicSpectrum<T, N> result(clhs.size(), clhs.get_intent(), DynamicSpectrum<T, N>::SizeAndIntentTag());
 
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            result[i] = lhs[i] + rhs[i];
-    }
-    else
-    {
-        result.resize(N);
-
-        DynamicSpectrum<T, N> up_lhs, up_rhs;
-        DynamicSpectrum<T, N>::upgrade(lhs, up_lhs);
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            result[i] = up_lhs[i] + up_rhs[i];
-    }
+    for (size_t i = 0, e = clhs.size(); i < e; ++i)
+        result[i] = clhs[i] + crhs[i];
 
     return result;
 }
@@ -620,26 +815,12 @@ inline DynamicSpectrum<T, N> operator-(const DynamicSpectrum<T, N>& lhs, const D
 {
     assert(lhs.get_intent() == rhs.get_intent());
 
-    DynamicSpectrum<T, N> result;
+    MAKE_COMPATIBLE(clhs, crhs, lhs, rhs);
 
-    if (lhs.size() == rhs.size())
-    {
-        result.resize(lhs.size());
+    DynamicSpectrum<T, N> result(clhs.size(), clhs.get_intent(), DynamicSpectrum<T, N>::SizeAndIntentTag());
 
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            result[i] = lhs[i] - rhs[i];
-    }
-    else
-    {
-        result.resize(N);
-
-        DynamicSpectrum<T, N> up_lhs, up_rhs;
-        DynamicSpectrum<T, N>::upgrade(lhs, up_lhs);
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            result[i] = up_lhs[i] - up_rhs[i];
-    }
+    for (size_t i = 0, e = clhs.size(); i < e; ++i)
+        result[i] = clhs[i] - crhs[i];
 
     return result;
 }
@@ -647,8 +828,7 @@ inline DynamicSpectrum<T, N> operator-(const DynamicSpectrum<T, N>& lhs, const D
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N> operator-(const DynamicSpectrum<T, N>& lhs)
 {
-    DynamicSpectrum<T, N> result;
-    result.resize(lhs.size());
+    DynamicSpectrum<T, N> result(lhs.size(), lhs.get_intent(), DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = lhs.size(); i < e; ++i)
         result[i] = -lhs[i];
@@ -659,8 +839,7 @@ inline DynamicSpectrum<T, N> operator-(const DynamicSpectrum<T, N>& lhs)
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N> operator*(const DynamicSpectrum<T, N>& lhs, const T rhs)
 {
-    DynamicSpectrum<T, N> result;
-    result.resize(lhs.size());
+    DynamicSpectrum<T, N> result(lhs.size(), lhs.get_intent(), DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = lhs.size(); i < e; ++i)
         result[i] = lhs[i] * rhs;
@@ -677,27 +856,13 @@ inline DynamicSpectrum<T, N> operator*(const T lhs, const DynamicSpectrum<T, N>&
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N> operator*(const DynamicSpectrum<T, N>& lhs, const DynamicSpectrum<T, N>& rhs)
 {
+    MAKE_COMPATIBLE(clhs, crhs, lhs, rhs);
+
     // If lhs or rhs is an illuminance, then result is an illuminance as well.
-    DynamicSpectrum<T, N> result(combine_intents(lhs, rhs));
+    DynamicSpectrum<T, N> result(clhs.size(), combine_intents(lhs, rhs), DynamicSpectrum<T, N>::SizeAndIntentTag());
 
-    if (lhs.size() == rhs.size())
-    {
-        result.resize(lhs.size());
-
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            result[i] = lhs[i] * rhs[i];
-    }
-    else
-    {
-        result.resize(N);
-
-        DynamicSpectrum<T, N> up_lhs, up_rhs;
-        DynamicSpectrum<T, N>::upgrade(lhs, up_lhs);
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            result[i] = up_lhs[i] * up_rhs[i];
-    }
+    for (size_t i = 0, e = clhs.size(); i < e; ++i)
+        result[i] = clhs[i] * crhs[i];
 
     return result;
 }
@@ -705,8 +870,7 @@ inline DynamicSpectrum<T, N> operator*(const DynamicSpectrum<T, N>& lhs, const D
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N> operator/(const DynamicSpectrum<T, N>& lhs, const T rhs)
 {
-    DynamicSpectrum<T, N> result;
-    result.resize(lhs.size());
+    DynamicSpectrum<T, N> result(lhs.size(), lhs.get_intent(), DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = lhs.size(); i < e; ++i)
         result[i] = lhs[i] / rhs;
@@ -735,27 +899,13 @@ inline DynamicSpectrum<long double, N> operator/(const DynamicSpectrum<long doub
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N> operator/(const DynamicSpectrum<T, N>& lhs, const DynamicSpectrum<T, N>& rhs)
 {
+    MAKE_COMPATIBLE(clhs, crhs, lhs, rhs);
+
     // If lhs or rhs is an illuminance, then result is an illuminance as well.
-    DynamicSpectrum<T, N> result(combine_intents(lhs, rhs));
+    DynamicSpectrum<T, N> result(clhs.size(), combine_intents(lhs, rhs), DynamicSpectrum<T, N>::SizeAndIntentTag());
 
-    if (lhs.size() == rhs.size())
-    {
-        result.resize(lhs.size());
-
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            result[i] = lhs[i] / rhs[i];
-    }
-    else
-    {
-        result.resize(N);
-
-        DynamicSpectrum<T, N> up_lhs, up_rhs;
-        DynamicSpectrum<T, N>::upgrade(lhs, up_lhs);
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            result[i] = up_lhs[i] / up_rhs[i];
-    }
+    for (size_t i = 0, e = clhs.size(); i < e; ++i)
+        result[i] = clhs[i] / crhs[i];
 
     return result;
 }
@@ -765,22 +915,10 @@ inline DynamicSpectrum<T, N>& operator+=(DynamicSpectrum<T, N>& lhs, const Dynam
 {
     assert(lhs.get_intent() == rhs.get_intent());
 
-    if (lhs.size() <= rhs.size())
-    {
-        if (lhs.size() < rhs.size())
-            DynamicSpectrum<T, N>::upgrade(lhs, lhs);
+    MAKE_COMPATIBLE_LHS_IN_PLACE(crhs, lhs, rhs);
 
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            lhs[i] += rhs[i];
-    }
-    else
-    {
-        DynamicSpectrum<T, N> up_rhs;
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            lhs[i] += up_rhs[i];
-    }
+    for (size_t i = 0, e = lhs.size(); i < e; ++i)
+        lhs[i] += crhs[i];
 
     return lhs;
 }
@@ -792,37 +930,20 @@ APPLESEED_FORCE_INLINE DynamicSpectrum<float, 31>& operator+=(DynamicSpectrum<fl
 {
     assert(lhs.get_intent() == rhs.get_intent());
 
-    if (lhs.size() <= rhs.size())
+    MAKE_COMPATIBLE_LHS_IN_PLACE_31F(crhs, lhs, rhs);
+
+    if (lhs.size() > 0)
+        _mm_store_ps(&lhs[ 0], _mm_add_ps(_mm_load_ps(&lhs[ 0]), _mm_load_ps(&crhs[ 0])));
+
+    if (lhs.size() > 3)
     {
-        if (lhs.size() < rhs.size())
-            DynamicSpectrum<float, 31>::upgrade(lhs, lhs);
-
-        _mm_store_ps(&lhs[ 0], _mm_add_ps(_mm_load_ps(&lhs[ 0]), _mm_load_ps(&rhs[ 0])));
-
-        if (lhs.size() > 3)
-        {
-            _mm_store_ps(&lhs[ 4], _mm_add_ps(_mm_load_ps(&lhs[ 4]), _mm_load_ps(&rhs[ 4])));
-            _mm_store_ps(&lhs[ 8], _mm_add_ps(_mm_load_ps(&lhs[ 8]), _mm_load_ps(&rhs[ 8])));
-            _mm_store_ps(&lhs[12], _mm_add_ps(_mm_load_ps(&lhs[12]), _mm_load_ps(&rhs[12])));
-            _mm_store_ps(&lhs[16], _mm_add_ps(_mm_load_ps(&lhs[16]), _mm_load_ps(&rhs[16])));
-            _mm_store_ps(&lhs[20], _mm_add_ps(_mm_load_ps(&lhs[20]), _mm_load_ps(&rhs[20])));
-            _mm_store_ps(&lhs[24], _mm_add_ps(_mm_load_ps(&lhs[24]), _mm_load_ps(&rhs[24])));
-            _mm_store_ps(&lhs[28], _mm_add_ps(_mm_load_ps(&lhs[28]), _mm_load_ps(&rhs[28])));
-        }
-    }
-    else
-    {
-        DynamicSpectrum<float, 31> up_rhs;
-        DynamicSpectrum<float, 31>::upgrade(rhs, up_rhs);
-
-        _mm_store_ps(&lhs[ 0], _mm_add_ps(_mm_load_ps(&lhs[ 0]), _mm_load_ps(&up_rhs[ 0])));
-        _mm_store_ps(&lhs[ 4], _mm_add_ps(_mm_load_ps(&lhs[ 4]), _mm_load_ps(&up_rhs[ 4])));
-        _mm_store_ps(&lhs[ 8], _mm_add_ps(_mm_load_ps(&lhs[ 8]), _mm_load_ps(&up_rhs[ 8])));
-        _mm_store_ps(&lhs[12], _mm_add_ps(_mm_load_ps(&lhs[12]), _mm_load_ps(&up_rhs[12])));
-        _mm_store_ps(&lhs[16], _mm_add_ps(_mm_load_ps(&lhs[16]), _mm_load_ps(&up_rhs[16])));
-        _mm_store_ps(&lhs[20], _mm_add_ps(_mm_load_ps(&lhs[20]), _mm_load_ps(&up_rhs[20])));
-        _mm_store_ps(&lhs[24], _mm_add_ps(_mm_load_ps(&lhs[24]), _mm_load_ps(&up_rhs[24])));
-        _mm_store_ps(&lhs[28], _mm_add_ps(_mm_load_ps(&lhs[28]), _mm_load_ps(&up_rhs[28])));
+        _mm_store_ps(&lhs[ 4], _mm_add_ps(_mm_load_ps(&lhs[ 4]), _mm_load_ps(&crhs[ 4])));
+        _mm_store_ps(&lhs[ 8], _mm_add_ps(_mm_load_ps(&lhs[ 8]), _mm_load_ps(&crhs[ 8])));
+        _mm_store_ps(&lhs[12], _mm_add_ps(_mm_load_ps(&lhs[12]), _mm_load_ps(&crhs[12])));
+        _mm_store_ps(&lhs[16], _mm_add_ps(_mm_load_ps(&lhs[16]), _mm_load_ps(&crhs[16])));
+        _mm_store_ps(&lhs[20], _mm_add_ps(_mm_load_ps(&lhs[20]), _mm_load_ps(&crhs[20])));
+        _mm_store_ps(&lhs[24], _mm_add_ps(_mm_load_ps(&lhs[24]), _mm_load_ps(&crhs[24])));
+        _mm_store_ps(&lhs[28], _mm_add_ps(_mm_load_ps(&lhs[28]), _mm_load_ps(&crhs[28])));
     }
 
     return lhs;
@@ -835,22 +956,10 @@ inline DynamicSpectrum<T, N>& operator-=(DynamicSpectrum<T, N>& lhs, const Dynam
 {
     assert(lhs.get_intent() == rhs.get_intent());
 
-    if (lhs.size() <= rhs.size())
-    {
-        if (lhs.size() < rhs.size())
-            DynamicSpectrum<T, N>::upgrade(lhs, lhs);
+    MAKE_COMPATIBLE_LHS_IN_PLACE(crhs, lhs, rhs);
 
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            lhs[i] -= rhs[i];
-    }
-    else
-    {
-        DynamicSpectrum<T, N> up_rhs;
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            lhs[i] -= up_rhs[i];
-    }
+    for (size_t i = 0, e = lhs.size(); i < e; ++i)
+        lhs[i] -= crhs[i];
 
     return lhs;
 }
@@ -871,7 +980,8 @@ APPLESEED_FORCE_INLINE DynamicSpectrum<float, 31>& operator*=(DynamicSpectrum<fl
 {
     const __m128 mrhs = _mm_set1_ps(rhs);
 
-    _mm_store_ps(&lhs[ 0], _mm_mul_ps(_mm_load_ps(&lhs[ 0]), mrhs));
+    if (lhs.size() > 0)
+        _mm_store_ps(&lhs[ 0], _mm_mul_ps(_mm_load_ps(&lhs[ 0]), mrhs));
 
     if (lhs.size() > 3)
     {
@@ -892,25 +1002,13 @@ APPLESEED_FORCE_INLINE DynamicSpectrum<float, 31>& operator*=(DynamicSpectrum<fl
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N>& operator*=(DynamicSpectrum<T, N>& lhs, const DynamicSpectrum<T, N>& rhs)
 {
-    if (lhs.size() <= rhs.size())
-    {
-        if (lhs.size() < rhs.size())
-            DynamicSpectrum<T, N>::upgrade(lhs, lhs);
-
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            lhs[i] *= rhs[i];
-    }
-    else
-    {
-        DynamicSpectrum<T, N> up_rhs;
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            lhs[i] *= up_rhs[i];
-    }
+    MAKE_COMPATIBLE_LHS_IN_PLACE(crhs, lhs, rhs);
 
     // If rhs is an illuminance, then lhs becomes an illuminance.
     lhs.set_intent(combine_intents(lhs, rhs));
+
+    for (size_t i = 0, e = lhs.size(); i < e; ++i)
+        lhs[i] *= crhs[i];
 
     return lhs;
 }
@@ -920,41 +1018,29 @@ inline DynamicSpectrum<T, N>& operator*=(DynamicSpectrum<T, N>& lhs, const Dynam
 template <>
 APPLESEED_FORCE_INLINE DynamicSpectrum<float, 31>& operator*=(DynamicSpectrum<float, 31>& lhs, const DynamicSpectrum<float, 31>& rhs)
 {
-    if (lhs.size() <= rhs.size())
+    if (rhs.size() == 1)
     {
-        if (lhs.size() < rhs.size())
-            DynamicSpectrum<float, 31>::upgrade(lhs, lhs);
-
-        _mm_store_ps(&lhs[ 0], _mm_mul_ps(_mm_load_ps(&lhs[ 0]), _mm_load_ps(&rhs[ 0])));
-
-        if (lhs.size() > 3)
-        {
-            _mm_store_ps(&lhs[ 4], _mm_mul_ps(_mm_load_ps(&lhs[ 4]), _mm_load_ps(&rhs[ 4])));
-            _mm_store_ps(&lhs[ 8], _mm_mul_ps(_mm_load_ps(&lhs[ 8]), _mm_load_ps(&rhs[ 8])));
-            _mm_store_ps(&lhs[12], _mm_mul_ps(_mm_load_ps(&lhs[12]), _mm_load_ps(&rhs[12])));
-            _mm_store_ps(&lhs[16], _mm_mul_ps(_mm_load_ps(&lhs[16]), _mm_load_ps(&rhs[16])));
-            _mm_store_ps(&lhs[20], _mm_mul_ps(_mm_load_ps(&lhs[20]), _mm_load_ps(&rhs[20])));
-            _mm_store_ps(&lhs[24], _mm_mul_ps(_mm_load_ps(&lhs[24]), _mm_load_ps(&rhs[24])));
-            _mm_store_ps(&lhs[28], _mm_mul_ps(_mm_load_ps(&lhs[28]), _mm_load_ps(&rhs[28])));
-        }
+        lhs *= rhs[0];
+        return lhs;
     }
-    else
-    {
-        DynamicSpectrum<float, 31> up_rhs;
-        DynamicSpectrum<float, 31>::upgrade(rhs, up_rhs);
 
-        _mm_store_ps(&lhs[ 0], _mm_mul_ps(_mm_load_ps(&lhs[ 0]), _mm_load_ps(&up_rhs[ 0])));
-        _mm_store_ps(&lhs[ 4], _mm_mul_ps(_mm_load_ps(&lhs[ 4]), _mm_load_ps(&up_rhs[ 4])));
-        _mm_store_ps(&lhs[ 8], _mm_mul_ps(_mm_load_ps(&lhs[ 8]), _mm_load_ps(&up_rhs[ 8])));
-        _mm_store_ps(&lhs[12], _mm_mul_ps(_mm_load_ps(&lhs[12]), _mm_load_ps(&up_rhs[12])));
-        _mm_store_ps(&lhs[16], _mm_mul_ps(_mm_load_ps(&lhs[16]), _mm_load_ps(&up_rhs[16])));
-        _mm_store_ps(&lhs[20], _mm_mul_ps(_mm_load_ps(&lhs[20]), _mm_load_ps(&up_rhs[20])));
-        _mm_store_ps(&lhs[24], _mm_mul_ps(_mm_load_ps(&lhs[24]), _mm_load_ps(&up_rhs[24])));
-        _mm_store_ps(&lhs[28], _mm_mul_ps(_mm_load_ps(&lhs[28]), _mm_load_ps(&up_rhs[28])));
-    }
+    MAKE_COMPATIBLE_LHS_IN_PLACE_31F(crhs, lhs, rhs);
 
     // If rhs is an illuminance, then lhs becomes an illuminance.
     lhs.set_intent(combine_intents(lhs, rhs));
+
+    _mm_store_ps(&lhs[ 0], _mm_mul_ps(_mm_load_ps(&lhs[ 0]), _mm_load_ps(&crhs[ 0])));
+
+    if (lhs.size() > 3)
+    {
+        _mm_store_ps(&lhs[ 4], _mm_mul_ps(_mm_load_ps(&lhs[ 4]), _mm_load_ps(&crhs[ 4])));
+        _mm_store_ps(&lhs[ 8], _mm_mul_ps(_mm_load_ps(&lhs[ 8]), _mm_load_ps(&crhs[ 8])));
+        _mm_store_ps(&lhs[12], _mm_mul_ps(_mm_load_ps(&lhs[12]), _mm_load_ps(&crhs[12])));
+        _mm_store_ps(&lhs[16], _mm_mul_ps(_mm_load_ps(&lhs[16]), _mm_load_ps(&crhs[16])));
+        _mm_store_ps(&lhs[20], _mm_mul_ps(_mm_load_ps(&lhs[20]), _mm_load_ps(&crhs[20])));
+        _mm_store_ps(&lhs[24], _mm_mul_ps(_mm_load_ps(&lhs[24]), _mm_load_ps(&crhs[24])));
+        _mm_store_ps(&lhs[28], _mm_mul_ps(_mm_load_ps(&lhs[28]), _mm_load_ps(&crhs[28])));
+    }
 
     return lhs;
 }
@@ -991,25 +1077,13 @@ inline DynamicSpectrum<long double, N>& operator/=(DynamicSpectrum<long double, 
 template <typename T, size_t N>
 inline DynamicSpectrum<T, N>& operator/=(DynamicSpectrum<T, N>& lhs, const DynamicSpectrum<T, N>& rhs)
 {
-    if (lhs.size() <= rhs.size())
-    {
-        if (lhs.size() < rhs.size())
-            DynamicSpectrum<T, N>::upgrade(lhs, lhs);
-
-        for (size_t i = 0, e = lhs.size(); i < e; ++i)
-            lhs[i] /= rhs[i];
-    }
-    else
-    {
-        DynamicSpectrum<T, N> up_rhs;
-        DynamicSpectrum<T, N>::upgrade(rhs, up_rhs);
-
-        for (size_t i = 0; i < N; ++i)
-            lhs[i] /= up_rhs[i];
-    }
+    MAKE_COMPATIBLE_LHS_IN_PLACE(crhs, lhs, rhs);
 
     // If rhs is an illuminance, then lhs becomes an illuminance.
     lhs.set_intent(combine_intents(lhs, rhs));
+
+    for (size_t i = 0, e = lhs.size(); i < e; ++i)
+        lhs[i] /= crhs[i];
 
     return lhs;
 }
@@ -1041,22 +1115,10 @@ inline void madd(
 {
     assert(a.get_intent() == b.get_intent());
 
-    if (a.size() <= b.size())
-    {
-        if (a.size() < b.size())
-            DynamicSpectrum<T, N>::upgrade(a, a);
+    MAKE_COMPATIBLE_LHS_IN_PLACE(cb, a, b);
 
-        for (size_t i = 0, e = a.size(); i < e; ++i)
-            a[i] += b[i] * c;
-    }
-    else
-    {
-        DynamicSpectrum<T, N> up_b;
-        DynamicSpectrum<T, N>::upgrade(b, up_b);
-
-        for (size_t i = 0, e = a.size(); i < e; ++i)
-            a[i] += up_b[i] * c;
-    }
+    for (size_t i = 0, e = a.size(); i < e; ++i)
+        a[i] += cb[i] * c;
 }
 
 #ifdef APPLESEED_USE_SSE
@@ -1098,39 +1160,21 @@ APPLESEED_FORCE_INLINE void madd(
 {
     assert(a.get_intent() == b.get_intent());
 
+    MAKE_COMPATIBLE_LHS_IN_PLACE_31F(cb, a, b);
+
     const __m128 k = _mm_set_ps1(c);
 
-    if (a.size() <= b.size())
+    _mm_store_ps(&a[0], _mm_add_ps(_mm_load_ps(&a[0]), _mm_mul_ps(_mm_load_ps(&cb[0]), k)));
+
+    if (a.size() > 3)
     {
-        if (a.size() < b.size())
-            DynamicSpectrum<float, 31>::upgrade(a, a);
-
-        _mm_store_ps(&a[0], _mm_add_ps(_mm_load_ps(&a[0]), _mm_mul_ps(_mm_load_ps(&b[0]), k)));
-
-        if (a.size() > 3)
-        {
-            _mm_store_ps(&a[ 4], _mm_add_ps(_mm_load_ps(&a[ 4]), _mm_mul_ps(_mm_load_ps(&b[ 4]), k)));
-            _mm_store_ps(&a[ 8], _mm_add_ps(_mm_load_ps(&a[ 8]), _mm_mul_ps(_mm_load_ps(&b[ 8]), k)));
-            _mm_store_ps(&a[12], _mm_add_ps(_mm_load_ps(&a[12]), _mm_mul_ps(_mm_load_ps(&b[12]), k)));
-            _mm_store_ps(&a[16], _mm_add_ps(_mm_load_ps(&a[16]), _mm_mul_ps(_mm_load_ps(&b[16]), k)));
-            _mm_store_ps(&a[20], _mm_add_ps(_mm_load_ps(&a[20]), _mm_mul_ps(_mm_load_ps(&b[20]), k)));
-            _mm_store_ps(&a[24], _mm_add_ps(_mm_load_ps(&a[24]), _mm_mul_ps(_mm_load_ps(&b[24]), k)));
-            _mm_store_ps(&a[28], _mm_add_ps(_mm_load_ps(&a[28]), _mm_mul_ps(_mm_load_ps(&b[28]), k)));
-        }
-    }
-    else
-    {
-        DynamicSpectrum<float, 31> up_b;
-        DynamicSpectrum<float, 31>::upgrade(b, up_b);
-
-        _mm_store_ps(&a[ 0], _mm_add_ps(_mm_load_ps(&a[ 0]), _mm_mul_ps(_mm_load_ps(&up_b[ 0]), k)));
-        _mm_store_ps(&a[ 4], _mm_add_ps(_mm_load_ps(&a[ 4]), _mm_mul_ps(_mm_load_ps(&up_b[ 4]), k)));
-        _mm_store_ps(&a[ 8], _mm_add_ps(_mm_load_ps(&a[ 8]), _mm_mul_ps(_mm_load_ps(&up_b[ 8]), k)));
-        _mm_store_ps(&a[12], _mm_add_ps(_mm_load_ps(&a[12]), _mm_mul_ps(_mm_load_ps(&up_b[12]), k)));
-        _mm_store_ps(&a[16], _mm_add_ps(_mm_load_ps(&a[16]), _mm_mul_ps(_mm_load_ps(&up_b[16]), k)));
-        _mm_store_ps(&a[20], _mm_add_ps(_mm_load_ps(&a[20]), _mm_mul_ps(_mm_load_ps(&up_b[20]), k)));
-        _mm_store_ps(&a[24], _mm_add_ps(_mm_load_ps(&a[24]), _mm_mul_ps(_mm_load_ps(&up_b[24]), k)));
-        _mm_store_ps(&a[28], _mm_add_ps(_mm_load_ps(&a[28]), _mm_mul_ps(_mm_load_ps(&up_b[28]), k)));
+        _mm_store_ps(&a[ 4], _mm_add_ps(_mm_load_ps(&a[ 4]), _mm_mul_ps(_mm_load_ps(&cb[ 4]), k)));
+        _mm_store_ps(&a[ 8], _mm_add_ps(_mm_load_ps(&a[ 8]), _mm_mul_ps(_mm_load_ps(&cb[ 8]), k)));
+        _mm_store_ps(&a[12], _mm_add_ps(_mm_load_ps(&a[12]), _mm_mul_ps(_mm_load_ps(&cb[12]), k)));
+        _mm_store_ps(&a[16], _mm_add_ps(_mm_load_ps(&a[16]), _mm_mul_ps(_mm_load_ps(&cb[16]), k)));
+        _mm_store_ps(&a[20], _mm_add_ps(_mm_load_ps(&a[20]), _mm_mul_ps(_mm_load_ps(&cb[20]), k)));
+        _mm_store_ps(&a[24], _mm_add_ps(_mm_load_ps(&a[24]), _mm_mul_ps(_mm_load_ps(&cb[24]), k)));
+        _mm_store_ps(&a[28], _mm_add_ps(_mm_load_ps(&a[28]), _mm_mul_ps(_mm_load_ps(&cb[28]), k)));
     }
 }
 
@@ -1214,8 +1258,7 @@ inline bool fz(const renderer::DynamicSpectrum<T, N>& s, const T eps)
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> rcp(const renderer::DynamicSpectrum<T, N>& s)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = T(1.0) / s[i];
@@ -1238,8 +1281,7 @@ inline bool is_saturated(const renderer::DynamicSpectrum<T, N>& s)
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> saturate(const renderer::DynamicSpectrum<T, N>& s)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = saturate(s[i]);
@@ -1256,8 +1298,7 @@ inline void saturate_in_place(renderer::DynamicSpectrum<T, N>& s)
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> clamp(const renderer::DynamicSpectrum<T, N>& s, const T min, const T max)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = clamp(s[i], min, max);
@@ -1281,8 +1322,7 @@ inline void clamp_in_place(renderer::DynamicSpectrum<T, N>& s, const T min, cons
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> clamp_low(const renderer::DynamicSpectrum<T, N>& s, const T min)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = std::max(s[i], min);
@@ -1303,8 +1343,7 @@ inline void clamp_low_in_place(renderer::DynamicSpectrum<T, N>& s, const T min)
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> clamp_high(const renderer::DynamicSpectrum<T, N>& s, const T max)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = std::min(s[i], max);
@@ -1333,8 +1372,7 @@ inline renderer::DynamicSpectrum<T, N> lerp(
     assert(a.get_intent() == b.get_intent());
     assert(a.get_intent() == t.get_intent());
 
-    renderer::DynamicSpectrum<T, N> result;
-    result.resize(a.size());
+    renderer::DynamicSpectrum<T, N> result(a.size(), a.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = a.size(); i < e; ++i)
         result[i] = foundation::lerp(a[i], b[i], t[i]);
@@ -1355,8 +1393,10 @@ APPLESEED_FORCE_INLINE renderer::DynamicSpectrum<float, 31> lerp(
     assert(a.get_intent() == b.get_intent());
     assert(a.get_intent() == t.get_intent());
 
-    renderer::DynamicSpectrum<float, 31> result;
-    result.resize(a.size());
+    renderer::DynamicSpectrum<float, 31> result(
+        a.size(),
+        a.get_intent(),
+        renderer::DynamicSpectrum<float, 31>::SizeAndIntentTag());
 
     __m128 one4 = _mm_set1_ps(1.0f);
     __m128 t4 = _mm_load_ps(&t[0]);
@@ -1401,7 +1441,11 @@ inline T min_value(const renderer::DynamicSpectrum<T, N>& s)
 template <>
 inline float min_value(const renderer::DynamicSpectrum<float, 31>& s)
 {
-    if (s.size() == 3)
+    if (s.size() == 0)
+        return 0.0f;
+    else if (s.size() == 1)
+        return s[0];
+    else if (s.size() == 3)
         return std::min(std::min(s[0], s[1]), s[2]);
 
     const __m128 m1 = _mm_min_ps(_mm_load_ps(&s[ 0]), _mm_load_ps(&s[ 4]));
@@ -1440,7 +1484,11 @@ inline T max_value(const renderer::DynamicSpectrum<T, N>& s)
 template <>
 inline float max_value(const renderer::DynamicSpectrum<float, 31>& s)
 {
-    if (s.size() == 3)
+    if (s.size() == 0)
+        return 0.0f;
+    else if (s.size() == 1)
+        return s[0];
+    else if (s.size() == 3)
         return std::max(std::max(s[0], s[1]), s[2]);
 
     const __m128 m1 = _mm_max_ps(_mm_load_ps(&s[ 0]), _mm_load_ps(&s[ 4]));
@@ -1584,8 +1632,7 @@ inline bool is_finite(const renderer::DynamicSpectrum<T, N>& s)
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> sqrt(const renderer::DynamicSpectrum<T, N>& s)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = std::sqrt(s[i]);
@@ -1598,8 +1645,10 @@ inline renderer::DynamicSpectrum<T, N> sqrt(const renderer::DynamicSpectrum<T, N
 template <>
 APPLESEED_FORCE_INLINE renderer::DynamicSpectrum<float, 31> sqrt(const renderer::DynamicSpectrum<float, 31>& s)
 {
-    renderer::DynamicSpectrum<float, 31> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<float, 31> result(
+        s.size(),
+        s.get_intent(),
+        renderer::DynamicSpectrum<float, 31>::SizeAndIntentTag());
 
     _mm_store_ps(&result[ 0], _mm_sqrt_ps(_mm_load_ps(&s[ 0])));
 
@@ -1622,8 +1671,7 @@ APPLESEED_FORCE_INLINE renderer::DynamicSpectrum<float, 31> sqrt(const renderer:
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> pow(const renderer::DynamicSpectrum<T, N>& x, const T y)
 {
-    renderer::DynamicSpectrum<T, N> result(x.get_intent());
-    result.resize(x.size());
+    renderer::DynamicSpectrum<T, N> result(x.size(), x.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = x.size(); i < e; ++i)
         result[i] = std::pow(x[i], y);
@@ -1638,8 +1686,7 @@ inline renderer::DynamicSpectrum<T, N> pow(
 {
     assert(x.size() == y.size());
 
-    renderer::DynamicSpectrum<T, N> result(x.get_intent());
-    result.resize(x.size());
+    renderer::DynamicSpectrum<T, N> result(x.size(), x.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = x.size(); i < e; ++i)
         result[i] = std::pow(x[i], y[i]);
@@ -1650,8 +1697,7 @@ inline renderer::DynamicSpectrum<T, N> pow(
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> log(const renderer::DynamicSpectrum<T, N>& s)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = std::log(s[i]);
@@ -1662,8 +1708,7 @@ inline renderer::DynamicSpectrum<T, N> log(const renderer::DynamicSpectrum<T, N>
 template <typename T, size_t N>
 inline renderer::DynamicSpectrum<T, N> exp(const renderer::DynamicSpectrum<T, N>& s)
 {
-    renderer::DynamicSpectrum<T, N> result(s.get_intent());
-    result.resize(s.size());
+    renderer::DynamicSpectrum<T, N> result(s.size(), s.get_intent(), renderer::DynamicSpectrum<T, N>::SizeAndIntentTag());
 
     for (size_t i = 0, e = s.size(); i < e; ++i)
         result[i] = std::exp(s[i]);
@@ -1681,6 +1726,9 @@ class PoisonImpl<renderer::DynamicSpectrum<T, N>>
             poison(s[i]);
     }
 };
+
+#undef MAKE_COMPATIBLE_LHS_IN_PLACE
+#undef MAKE_COMPATIBLE
 
 }       // namespace foundation
 

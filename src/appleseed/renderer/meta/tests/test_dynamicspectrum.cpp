@@ -52,11 +52,11 @@ TEST_SUITE(Renderer_Utility_DynamicSpectrum31f)
         42.0f, 42.0f, 42.0f, 42.0f, 42.0f, 42.0f, 42.0f
     };
 
-    TEST_CASE(DefaultConstructor_CreatesRGB)
+    TEST_CASE(DefaultConstructor_CreatesScalar)
     {
         const DynamicSpectrum31f s;
 
-        EXPECT_EQ(3, s.size());
+        EXPECT_EQ(1, s.size());
     }
 
     TEST_CASE(ConstructorTakingAnArrayOfValues_CreatesSpectrum)
@@ -66,11 +66,11 @@ TEST_SUITE(Renderer_Utility_DynamicSpectrum31f)
         EXPECT_EQ(31, s.size());
     }
 
-    TEST_CASE(ConstructorTakingSingleValue_CreatesRGB)
+    TEST_CASE(ConstructorTakingSingleValue_CreatesScalar)
     {
         const DynamicSpectrum31f s(42.0f);
 
-        EXPECT_EQ(3, s.size());
+        EXPECT_EQ(1, s.size());
     }
 
     TEST_CASE(ConstructorTakingColor_CreatesRGB)

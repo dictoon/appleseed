@@ -40,12 +40,14 @@ namespace renderer
 //
 
 ShadingComponents::ShadingComponents(const Spectrum::Intent intent)
-  : m_beauty(0.0f, intent)
-  , m_diffuse(0.0f, intent)
-  , m_glossy(0.0f, intent)
-  , m_volume(0.0f, intent)
-  , m_emission(0.0f, Spectrum::Illuminance)
+  : m_beauty(0, intent, Spectrum::SizeAndIntentTag())
+  , m_diffuse(0, intent, Spectrum::SizeAndIntentTag())
+  , m_glossy(0, intent, Spectrum::SizeAndIntentTag())
+  , m_volume(0, intent, Spectrum::SizeAndIntentTag())
+  , m_emission(0, Spectrum::Illuminance, Spectrum::SizeAndIntentTag())
 {
+    // todo: redundant.
+    set(0.0f);
 }
 
 void ShadingComponents::set(const float val)
