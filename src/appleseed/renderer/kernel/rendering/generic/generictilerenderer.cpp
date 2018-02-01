@@ -115,6 +115,7 @@ namespace
             const Frame&    frame,
             const size_t    tile_x,
             const size_t    tile_y,
+            const size_t    pass_index,
             const size_t    pass_hash,
             IAbortSwitch&   abort_switch) override
         {
@@ -201,6 +202,7 @@ namespace
                     tile,
                     aov_tiles,
                     tile_bbox,
+                    pass_index,
                     pass_hash,
                     pi,
                     pt,

@@ -307,7 +307,9 @@ namespace
                 // Rendering passes.
                 //
 
-                for (size_t pass = 0; pass < m_pass_count; ++pass)
+                for (size_t pass_index = 0;
+                     pass_index < m_pass_count && !m_abort_switch.is_aborted();
+                     ++pass_index)
                 {
                     // Check abort flag.
                     if (m_abort_switch.is_aborted())
@@ -317,7 +319,7 @@ namespace
                     }
 
                     if (m_pass_count > 1)
-                        RENDERER_LOG_INFO("--- beginning rendering pass %s ---", pretty_uint(pass + 1).c_str());
+                        RENDERER_LOG_INFO("--- beginning rendering pass %s ---", pretty_uint(pass_index + 1).c_str());
 
                     // Invoke the pre-pass callback if there is one.
                     if (m_pass_callback)
@@ -332,13 +334,14 @@ namespace
                         tile_callback->on_tiled_frame_begin(&m_frame);
 
                     // Create tile jobs.
-                    const uint32 pass_hash = hash_uint32(static_cast<uint32>(pass));
+                    const uint32 pass_hash = hash_uint32(static_cast<uint32>(pass_index));
                     TileJobFactory::TileJobVector tile_jobs;
                     m_tile_job_factory.create(
                         m_frame,
                         m_tile_ordering,
                         m_tile_renderers,
                         m_tile_callbacks,
+                        pass_index,
                         pass_hash,
                         m_spectrum_mode,
                         tile_jobs,

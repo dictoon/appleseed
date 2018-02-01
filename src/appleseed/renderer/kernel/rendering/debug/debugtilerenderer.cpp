@@ -71,6 +71,7 @@ namespace
             const Frame&    frame,
             const size_t    tile_x,
             const size_t    tile_y,
+            const size_t    pass_index,
             const size_t    pass_hash,
             IAbortSwitch&   abort_switch) override
         {

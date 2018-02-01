@@ -115,6 +115,7 @@ namespace
             Tile&                       tile,
             TileStack&                  aov_tiles,
             const AABB2i&               tile_bbox,
+            const size_t                pass_index,
             const size_t                pass_hash,
             const Vector2i&             pi,
             const Vector2i&             pt,
@@ -139,11 +140,13 @@ namespace
                     0,                          // number of samples -- unknown
                     instance);                  // initial instance number
 
-                for (size_t i = 0; i < m_sample_count; ++i)
+                const size_t sample_count = pow_int(m_sample_count, pass_index + 1);
+
+                for (size_t i = 0; i < sample_count; ++i)
                 {
                     // Generate a uniform sample in [0,1)^2.
                     const Vector2d s =
-                        m_sample_count > 1 || m_params.m_force_aa
+                        sample_count > 1 || m_params.m_force_aa
                             ? sampling_context.next2<Vector2d>()
                             : Vector2d(0.5);
 

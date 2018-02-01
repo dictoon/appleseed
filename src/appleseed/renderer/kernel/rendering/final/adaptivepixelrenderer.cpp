@@ -159,6 +159,7 @@ namespace
             Tile&                       tile,
             TileStack&                  aov_tiles,
             const AABB2i&               tile_bbox,
+            const size_t                pass_index,
             const size_t                pass_hash,
             const Vector2i&             pi,
             const Vector2i&             pt,

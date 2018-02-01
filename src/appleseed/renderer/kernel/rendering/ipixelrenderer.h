@@ -75,6 +75,7 @@ class IPixelRenderer
         foundation::Tile&           tile,
         TileStack&                  aov_tiles,
         const foundation::AABB2i&   tile_bbox,
+        const size_t                pass_index,
         const size_t                pass_hash,
         const foundation::Vector2i& pi,               // image-space pixel coordinates
         const foundation::Vector2i& pt,               // tile-space pixel coordinates
