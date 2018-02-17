@@ -78,7 +78,7 @@ void IMaterialFactory::add_displacement_metadata(DictionaryArray& metadata)
     metadata.push_back(
         Dictionary()
             .insert("name", "displacement_map")
-            .insert("label", "Displacement Map")
+            .insert("label", "Perturbation Map")
             .insert("type", "colormap")
             .insert("entity_types",
                 Dictionary().insert("texture_instance", "Textures"))
@@ -87,7 +87,7 @@ void IMaterialFactory::add_displacement_metadata(DictionaryArray& metadata)
     metadata.push_back(
         Dictionary()
             .insert("name", "displacement_method")
-            .insert("label", "Displacement Method")
+            .insert("label", "Perturbation Method")
             .insert("type", "enumeration")
             .insert("items",
                 Dictionary()

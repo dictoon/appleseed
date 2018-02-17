@@ -37,6 +37,7 @@
 #include "foundation/utility/job/jobmanager.h"
 #include "foundation/utility/job/jobqueue.h"
 #include "foundation/utility/log.h"
+#include "foundation/utility/string.h"
 
 // Standard headers.
 #include <exception>
@@ -203,7 +204,7 @@ bool WorkerThread::execute_job(IJob& job)
             m_logger,
             "worker thread " FMT_SIZE_T ": job was terminated (%s).",
             m_index,
-            e.what()[0] != '\0' ? e.what() : "no details available");
+            !is_empty_string(e.what()) ? e.what() : "no details available");
 
         return false;
     }

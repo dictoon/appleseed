@@ -43,6 +43,7 @@
 #include "foundation/utility/filter.h"
 #include "foundation/utility/gnuplotfile.h"
 #include "foundation/utility/stopwatch.h"
+#include "foundation/utility/string.h"
 
 // Standard headers.
 #include <algorithm>
@@ -301,7 +302,7 @@ void BenchmarkSuite::run(
 #ifdef NDEBUG
         catch (const exception& e)
         {
-            if (e.what()[0] != '\0')
+            if (!is_empty_string(e.what()))
             {
                 suite_result.write(
                     *this,

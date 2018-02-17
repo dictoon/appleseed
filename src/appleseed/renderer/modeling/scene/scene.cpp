@@ -331,10 +331,16 @@ bool Scene::on_render_begin(
     m_render_data.m_safe_diameter = m_render_data.m_diameter * GScalar(1.01);
     m_has_render_data = true;
 
-    for (each<CameraContainer> i = cameras(); i; ++i)
+    for (Camera& camera : cameras())
     {
-        if (!i->on_render_begin(project, abort_switch))
+        if (!camera.on_render_begin(project, abort_switch))
             return false;
+    }
+
+    for (Assembly& assembly : assemblies())
+    {
+        if (!assembly.on_render_begin(project, abort_switch))
+		    return false;
     }
 
     return true;
@@ -342,11 +348,14 @@ bool Scene::on_render_begin(
 
 void Scene::on_render_end(const Project& project)
 {
+    for (Assembly& assembly : assemblies())
+        assembly.on_render_end(project);
+
+    for (Camera& camera : cameras())
+        camera.on_render_end(project);
+
     assert(m_has_render_data);
     m_has_render_data = false;
-
-    for (each<CameraContainer> i = cameras(); i; ++i)
-        i->on_render_end(project);
 }
 
 namespace

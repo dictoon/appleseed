@@ -32,6 +32,7 @@
 
 // appleseed.foundation headers.
 #include "foundation/core/version.h"
+#include "foundation/utility/string.h"
 
 // Standard headers.
 #include <sstream>
@@ -117,7 +118,7 @@ namespace
             sstr << " version ";
             sstr << Appleseed::get_lib_version();
 
-            if (Appleseed::get_lib_variant()[0] != '\0')
+            if (!is_empty_string(Appleseed::get_lib_variant()))
             {
                 sstr << " (";
                 sstr << Appleseed::get_lib_variant();

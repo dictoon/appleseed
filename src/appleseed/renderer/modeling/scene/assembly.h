@@ -131,6 +131,15 @@ class APPLESEED_DLLSYMBOL Assembly
     void collect_asset_paths(foundation::StringArray& paths) const override;
     void update_asset_paths(const foundation::StringDictionary& mappings) override;
 
+    // This method is called once before rendering.
+    // Returns true on success, false otherwise.
+    virtual bool on_render_begin(
+        const Project&              project,
+        foundation::IAbortSwitch*   abort_switch = nullptr);
+
+    // This method is called once after rendering.
+    virtual void on_render_end(const Project& project);
+
     // This method is called once before rendering each frame.
     // Returns true on success, false otherwise.
     bool on_frame_begin(

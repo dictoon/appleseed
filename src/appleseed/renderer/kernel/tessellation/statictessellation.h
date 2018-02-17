@@ -38,6 +38,7 @@
 #include "foundation/core/concepts/noncopyable.h"
 #include "foundation/utility/attributeset.h"
 #include "foundation/utility/lazy.h"
+#include "foundation/utility/memory.h"
 #include "foundation/utility/numerictype.h"
 #include "foundation/utility/poolallocator.h"
 
@@ -82,6 +83,9 @@ class StaticTessellation
 
     // Constructor.
     StaticTessellation();
+
+    // Remove everything from the tessellation, freeing memory.
+    void clear_release_memory();
 
     // Insert and access texture coordinates.
     void reserve_tex_coords(const size_t count);
@@ -185,6 +189,36 @@ inline StaticTessellation<Primitive>::StaticTessellation()
   , m_vnp_cid(foundation::AttributeSet::InvalidChannelID)
   , m_vtp_cid(foundation::AttributeSet::InvalidChannelID)
 {
+}
+
+template <typename Primitive>
+void StaticTessellation<Primitive>::clear_release_memory()
+{
+    foundation::clear_release_memory(m_vertices);
+    foundation::clear_release_memory(m_vertex_normals);
+    foundation::clear_release_memory(m_primitives);
+
+    if (m_uv_0_cid != foundation::AttributeSet::InvalidChannelID)
+    {
+        m_vertex_attributes.delete_channel(m_uv_0_cid);
+        m_uv_0_cid = foundation::AttributeSet::InvalidChannelID;
+    }
+
+    if (m_tangents_cid != foundation::AttributeSet::InvalidChannelID)
+    {
+        m_vertex_attributes.delete_channel(m_tangents_cid);
+        m_tangents_cid = foundation::AttributeSet::InvalidChannelID;
+    }
+
+    if (m_ms_count_cid != foundation::AttributeSet::InvalidChannelID)
+    {
+        m_tessellation_attributes.delete_channel(m_ms_count_cid);
+        m_ms_count_cid = foundation::AttributeSet::InvalidChannelID;
+    }
+
+    clear_vertex_poses();
+    clear_vertex_normal_poses();
+    clear_vertex_tangent_poses();
 }
 
 template <typename Primitive>

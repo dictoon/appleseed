@@ -46,9 +46,10 @@
 #include <cstddef>
 
 // Forward declarations.
-namespace renderer  { class ParamArray; }
-namespace renderer  { class Project; }
-namespace renderer  { class Source; }
+namespace foundation    { class IAbortSwitch; }
+namespace renderer      { class ParamArray; }
+namespace renderer      { class Project; }
+namespace renderer      { class Source; }
 
 namespace renderer
 {
@@ -66,11 +67,20 @@ class APPLESEED_DLLSYMBOL Object
 
     // Constructor.
     Object(
-        const char*         name,
-        const ParamArray&   params);
+        const char*                 name,
+        const ParamArray&           params);
 
     // Return a string identifying the model of this entity.
     virtual const char* get_model() const = 0;
+
+    // This method is called once before rendering.
+    // Returns true on success, false otherwise.
+    virtual bool on_render_begin(
+        const Project&              project,
+        foundation::IAbortSwitch*   abort_switch = nullptr);
+
+    // This method is called once after rendering.
+    virtual void on_render_end(const Project& project);
 
     // Compute the local space bounding box of the object over the shutter interval.
     virtual GAABB3 compute_local_bbox() const = 0;

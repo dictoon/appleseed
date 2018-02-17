@@ -64,11 +64,11 @@ namespace
     const char* Model = "mesh_object";
 
     // A region that simply wraps a static tessellation.
-    class MeshRegion
+    class TessWrappingRegion
       : public IRegion
     {
       public:
-        explicit MeshRegion(StaticTriangleTess* tess)
+        explicit TessWrappingRegion(StaticTriangleTess* tess)
           : m_tess(tess)
           , m_lazy_tess(tess)
         {
@@ -92,17 +92,79 @@ namespace
 
 struct MeshObject::Impl
 {
+    bool                        m_is_displaced;
+
     StaticTriangleTess          m_tess;
-    MeshRegion                  m_region;
+    TessWrappingRegion          m_region;
     RegionKit                   m_region_kit;
     mutable Lazy<RegionKit>     m_lazy_region_kit;
+
+    StaticTriangleTess          m_displaced_tess;
+    TessWrappingRegion          m_displaced_region;
+    RegionKit                   m_displaced_region_kit;
+    mutable Lazy<RegionKit>     m_lazy_displaced_region_kit;
+
     vector<string>              m_material_slots;
 
     Impl()
-      : m_region(&m_tess)
+      : m_is_displaced(false)
+      , m_region(&m_tess)
       , m_lazy_region_kit(&m_region_kit)
+      , m_displaced_region(&m_displaced_tess)
+      , m_lazy_displaced_region_kit(&m_displaced_region_kit)
     {
         m_region_kit.push_back(&m_region);
+        m_displaced_region_kit.push_back(&m_displaced_region);
+    }
+
+    void build_displaced_surface(const Source* map, const Source* multiplier)
+    {
+        for (const GVector3& v : m_tess.m_vertices)
+            m_displaced_tess.m_vertices.push_back(v);
+
+        for (const GVector3& n : m_tess.m_vertex_normals)
+            m_displaced_tess.m_vertex_normals.push_back(n);
+
+        for (const Triangle& tri : m_tess.m_primitives)
+            split_or_insert_triangle(tri);
+    }
+
+    void split_or_insert_triangle(const Triangle& tri)
+    {
+        const GVector3& v0 = m_displaced_tess.m_vertices[tri.m_v0];
+        const GVector3& v1 = m_displaced_tess.m_vertices[tri.m_v1];
+        const GVector3& v2 = m_displaced_tess.m_vertices[tri.m_v2];
+
+        const GScalar square_max_edge_length = square(100.0f);
+
+        const bool split =
+            square_norm(v1 - v0) > square_max_edge_length ||
+            square_norm(v2 - v0) > square_max_edge_length ||
+            square_norm(v2 - v1) > square_max_edge_length;
+
+        if (split)
+        {
+            const GVector3 m01 = 0.5f * (v0 + v1);
+            const GVector3 m02 = 0.5f * (v0 + v2);
+            const GVector3 m12 = 0.5f * (v1 + v2);
+
+            const size_t i01 = m_displaced_tess.m_vertices.size() + 0;
+            const size_t i02 = m_displaced_tess.m_vertices.size() + 1;
+            const size_t i12 = m_displaced_tess.m_vertices.size() + 2;
+
+            m_displaced_tess.m_vertices.push_back(m01);
+            m_displaced_tess.m_vertices.push_back(m02);
+            m_displaced_tess.m_vertices.push_back(m12);
+
+            split_or_insert_triangle(Triangle(tri.m_v0, i01, i02));
+            split_or_insert_triangle(Triangle(tri.m_v1, i12, i01));
+            split_or_insert_triangle(Triangle(tri.m_v2, i02, i12));
+            split_or_insert_triangle(Triangle(i01, i12, i02));
+        }
+        else
+        {
+            m_displaced_tess.m_primitives.push_back(tri);
+        }
     }
 };
 
@@ -113,6 +175,8 @@ MeshObject::MeshObject(
   , impl(new Impl())
 {
     m_inputs.declare("alpha_map", InputFormatFloat, "");
+    m_inputs.declare("displacement_map", InputFormatFloat, "");
+    m_inputs.declare("displacement_multiplier", InputFormatFloat, "1.0");
 }
 
 MeshObject::~MeshObject()
@@ -130,6 +194,36 @@ const char* MeshObject::get_model() const
     return Model;
 }
 
+bool MeshObject::on_render_begin(
+    const Project&          project,
+    IAbortSwitch*           abort_switch)
+{
+    if (!Object::on_render_begin(project, abort_switch))
+        return false;
+
+    const Source* displacement_map = m_inputs.source("displacement_map");
+    if (displacement_map != nullptr)
+    {
+        impl->build_displaced_surface(
+            displacement_map,
+            m_inputs.source("displacement_multiplier"));
+        impl->m_is_displaced = true;
+    }
+
+    return true;
+}
+
+void MeshObject::on_render_end(const Project& project)
+{
+    if (impl->m_is_displaced)
+    {
+        impl->m_displaced_tess.clear_release_memory();
+        impl->m_is_displaced = false;
+    }
+
+    Object::on_render_end(project);
+}
+
 bool MeshObject::on_frame_begin(
     const Project&          project,
     const BaseGroup*        parent,
@@ -140,6 +234,7 @@ bool MeshObject::on_frame_begin(
         return false;
 
     m_alpha_map = get_uncached_alpha_map();
+
     return true;
 }
 
@@ -173,7 +268,9 @@ GAABB3 MeshObject::compute_local_bbox() const
 
 Lazy<RegionKit>& MeshObject::get_region_kit()
 {
-    return impl->m_lazy_region_kit;
+    return impl->m_is_displaced
+        ? impl->m_lazy_displaced_region_kit
+        : impl->m_lazy_region_kit;
 }
 
 void MeshObject::reserve_vertices(const size_t count)
@@ -460,6 +557,40 @@ DictionaryArray MeshObjectFactory::get_input_metadata() const
                     .insert("value", "1.0")
                     .insert("type", "hard"))
             .insert("use", "optional"));
+
+    metadata.push_back(
+        Dictionary()
+            .insert("name", "displacement_map")
+            .insert("label", "Displacement Map")
+            .insert("type", "colormap")
+            .insert("entity_types",
+                Dictionary()
+                    .insert("texture_instance", "Textures"))
+            .insert("min",
+                Dictionary()
+                    .insert("value", "-1.0")
+                    .insert("type", "soft"))
+            .insert("max",
+                Dictionary()
+                    .insert("value", "1.0")
+                    .insert("type", "soft"))
+            .insert("use", "optional"));
+
+    metadata.push_back(
+        Dictionary()
+            .insert("name", "displacement_multiplier")
+            .insert("label", "Displacement Multiplier")
+            .insert("type", "numeric")
+            .insert("min",
+                Dictionary()
+                    .insert("value", "0.0")
+                    .insert("type", "soft"))
+            .insert("max",
+                Dictionary()
+                    .insert("value", "1.0")
+                    .insert("type", "soft"))
+            .insert("use", "optional")
+            .insert("default", "1.0"));
 
     return metadata;
 }

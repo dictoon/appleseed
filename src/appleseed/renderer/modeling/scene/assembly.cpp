@@ -250,6 +250,24 @@ void Assembly::update_asset_paths(const StringDictionary& mappings)
     do_update_asset_paths(mappings, volumes());
 }
 
+bool Assembly::on_render_begin(
+    const Project&          project,
+    IAbortSwitch*           abort_switch)
+{
+    bool success = true;
+
+    for (Object& object : objects())
+        success = success && object.on_render_begin(project, abort_switch);
+
+    return success;
+}
+
+void Assembly::on_render_end(const Project& project)
+{
+    for (Object& object : objects())
+        object.on_render_end(project);
+}
+
 namespace
 {
     template <typename EntityCollection>

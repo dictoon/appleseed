@@ -32,6 +32,7 @@
 
 // appleseed.foundation headers.
 #include "foundation/utility/filter.h"
+#include "foundation/utility/string.h"
 #include "foundation/utility/test/exceptionassertionfailure.h"
 #include "foundation/utility/test/itestcase.h"
 #include "foundation/utility/test/itestcasefactory.h"
@@ -204,7 +205,7 @@ void TestSuite::run_case(
 #ifdef NDEBUG
     catch (const exception& e)
     {
-        if (e.what()[0] != '\0')
+        if (!is_empty_string(e.what()))
         {
             TestListenerHelper::write(
                 test_listener,

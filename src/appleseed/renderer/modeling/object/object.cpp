@@ -58,6 +58,17 @@ Object::Object(
     set_name(name);
 }
 
+bool Object::on_render_begin(
+    const Project&      project,
+    IAbortSwitch*       abort_switch)
+{
+    return true;
+}
+
+void Object::on_render_end(const Project& project)
+{
+}
+
 bool Object::has_alpha_map() const
 {
     return false;

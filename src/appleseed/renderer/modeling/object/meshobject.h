@@ -80,6 +80,15 @@ class APPLESEED_DLLSYMBOL MeshObject
     // Return a string identifying the model of this object.
     const char* get_model() const override;
 
+    // This method is called once before rendering.
+    // Returns true on success, false otherwise.
+    virtual bool on_render_begin(
+        const Project&              project,
+        foundation::IAbortSwitch*   abort_switch = nullptr) override;
+
+    // This method is called once after rendering.
+    virtual void on_render_end(const Project& project) override;
+
     // This method is called once before rendering each frame.
     // Returns true on success, false otherwise.
     bool on_frame_begin(

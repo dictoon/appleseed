@@ -69,7 +69,7 @@ const char* APIString::c_str() const
 
 bool APIString::empty() const
 {
-    return m_s ? m_s[0] == '\0' : true;
+    return m_s ? is_empty_string(m_s) : true;
 }
 
 }   // namespace foundation
