@@ -39,6 +39,7 @@
 
 // appleseed.foundation headers.
 #include "foundation/utility/api/apiarray.h"
+#include "foundation/utility/api/apistring.h"
 #include "foundation/utility/api/specializedapiarrays.h"
 #include "foundation/utility/containers/dictionary.h"
 #include "foundation/utility/foreach.h"
@@ -117,49 +118,125 @@ struct MeshObject::Impl
         m_displaced_region_kit.push_back(&m_displaced_region);
     }
 
+    static GScalar compute_height(const GVector2& uv)
+    {
+        //return (1.0f + sin(norm(GVector2(0.5f) - uv) * 2.0f)) * 0.005f;
+        return uv[0] * 0.05f;
+    }
+
     void build_displaced_surface(const Source* map, const Source* multiplier)
     {
-        for (const GVector3& v : m_tess.m_vertices)
-            m_displaced_tess.m_vertices.push_back(v);
+        // Build a direct relationship between vertices, vertex normals and texture coordinates.
+        vector<GVector3> vertex_normals(m_tess.m_vertices.size(), GVector3(0.0f));
+        vector<GVector2> vertex_uvs(m_tess.m_vertices.size(), GVector2(0.0f));
+        for (const Triangle& tri : m_tess.m_primitives)
+        {
+            if (tri.m_n0 != Triangle::None) vertex_normals[tri.m_v0] = m_tess.m_vertex_normals[tri.m_n0];
+            if (tri.m_n1 != Triangle::None) vertex_normals[tri.m_v1] = m_tess.m_vertex_normals[tri.m_n1];
+            if (tri.m_n2 != Triangle::None) vertex_normals[tri.m_v2] = m_tess.m_vertex_normals[tri.m_n2];
+            if (tri.m_a0 != Triangle::None) vertex_uvs[tri.m_v0] = m_tess.get_tex_coords(tri.m_a0);
+            if (tri.m_a1 != Triangle::None) vertex_uvs[tri.m_v1] = m_tess.get_tex_coords(tri.m_a1);
+            if (tri.m_a2 != Triangle::None) vertex_uvs[tri.m_v2] = m_tess.get_tex_coords(tri.m_a2);
+        }
 
+        // Displace and push the original vertices into the final tessellation.
+        for (size_t i = 0, e = m_tess.m_vertices.size(); i < e; ++i)
+        {
+            const GVector3& n = vertex_normals[i];
+            const GVector2& uv = vertex_uvs[i];
+            GVector3 v = m_tess.m_vertices[i];
+
+            // Apply displacement.
+            assert(is_normalized(n));
+            v += n * compute_height(uv);
+
+            m_displaced_tess.m_vertices.push_back(v);
+        }
+
+        // Push the original normals into the final tessellation.
         for (const GVector3& n : m_tess.m_vertex_normals)
             m_displaced_tess.m_vertex_normals.push_back(n);
 
+        // Split and push the original triangles into the final tessellation.
         for (const Triangle& tri : m_tess.m_primitives)
-            split_or_insert_triangle(tri);
+            split_or_insert_triangle(tri, vertex_normals, vertex_uvs, 0);
     }
 
-    void split_or_insert_triangle(const Triangle& tri)
+    void split_or_insert_triangle(
+        const Triangle&     tri,
+        vector<GVector3>&   vertex_normals,
+        vector<GVector2>&   vertex_uvs,
+        const size_t        level)
     {
         const GVector3& v0 = m_displaced_tess.m_vertices[tri.m_v0];
         const GVector3& v1 = m_displaced_tess.m_vertices[tri.m_v1];
         const GVector3& v2 = m_displaced_tess.m_vertices[tri.m_v2];
 
-        const GScalar square_max_edge_length = square(100.0f);
+        const GScalar square_max_edge_length = square(0.02f);
+
+        const GScalar sn01 = square_norm(v1 - v0);
+        const GScalar sn02 = square_norm(v2 - v0);
+        const GScalar sn12 = square_norm(v2 - v1);
 
         const bool split =
-            square_norm(v1 - v0) > square_max_edge_length ||
-            square_norm(v2 - v0) > square_max_edge_length ||
-            square_norm(v2 - v1) > square_max_edge_length;
+            sn01 > square_max_edge_length ||
+            sn02 > square_max_edge_length ||
+            sn12 > square_max_edge_length;
 
         if (split)
         {
-            const GVector3 m01 = 0.5f * (v0 + v1);
-            const GVector3 m02 = 0.5f * (v0 + v2);
-            const GVector3 m12 = 0.5f * (v1 + v2);
-
+            // Vertex indices of the edge centers.
             const size_t i01 = m_displaced_tess.m_vertices.size() + 0;
             const size_t i02 = m_displaced_tess.m_vertices.size() + 1;
             const size_t i12 = m_displaced_tess.m_vertices.size() + 2;
 
-            m_displaced_tess.m_vertices.push_back(m01);
-            m_displaced_tess.m_vertices.push_back(m02);
-            m_displaced_tess.m_vertices.push_back(m12);
+            // Compute and push normals of edge centers.
+            const GVector3& n0 = vertex_normals[tri.m_v0];
+            const GVector3& n1 = vertex_normals[tri.m_v1];
+            const GVector3& n2 = vertex_normals[tri.m_v2];
+            const GVector3 n01 = normalize(n0 + n1);  // todo: improve?
+            const GVector3 n02 = normalize(n0 + n2);  // todo: improve?
+            const GVector3 n12 = normalize(n1 + n2);  // todo: improve?
+            ensure_minimum_size(vertex_normals, i12 + 1);
+            vertex_normals[i01] = n01;
+            vertex_normals[i02] = n02;
+            vertex_normals[i12] = n12;
 
-            split_or_insert_triangle(Triangle(tri.m_v0, i01, i02));
-            split_or_insert_triangle(Triangle(tri.m_v1, i12, i01));
-            split_or_insert_triangle(Triangle(tri.m_v2, i02, i12));
-            split_or_insert_triangle(Triangle(i01, i12, i02));
+            // Compute and push UV coordinates of edge centers.
+            const GVector2& uv0 = vertex_uvs[tri.m_v0];
+            const GVector2& uv1 = vertex_uvs[tri.m_v1];
+            const GVector2& uv2 = vertex_uvs[tri.m_v2];
+            const GVector2 uv01 = 0.5f * (uv0 + uv1);
+            const GVector2 uv02 = 0.5f * (uv0 + uv2);
+            const GVector2 uv12 = 0.5f * (uv1 + uv2);
+            ensure_minimum_size(vertex_uvs, i12 + 1);
+            vertex_uvs[i01] = uv01;
+            vertex_uvs[i02] = uv02;
+            vertex_uvs[i12] = uv12;
+
+            // Compute initial position of edge centers.
+            GVector3 v01 = 0.5f * (v0 + v1);
+            GVector3 v02 = 0.5f * (v0 + v2);
+            GVector3 v12 = 0.5f * (v1 + v2);
+
+            // Apply displacement to edge centers.
+            v01 += n01 * compute_height(uv01);
+            v02 += n02 * compute_height(uv02);
+            v12 += n12 * compute_height(uv12);
+
+            // Push edge centers.
+            m_displaced_tess.m_vertices.push_back(v01);
+            m_displaced_tess.m_vertices.push_back(v02);
+            m_displaced_tess.m_vertices.push_back(v12);
+
+            if (level < 8)
+            {
+                // Recursively consider the four new triangles.
+                split_or_insert_triangle(Triangle(tri.m_v0, i01, i02), vertex_normals, vertex_uvs, level + 1);
+                split_or_insert_triangle(Triangle(tri.m_v1, i12, i01), vertex_normals, vertex_uvs, level + 1);
+                split_or_insert_triangle(Triangle(tri.m_v2, i02, i12), vertex_normals, vertex_uvs, level + 1);
+                split_or_insert_triangle(Triangle(i01, i12, i02),      vertex_normals, vertex_uvs, level + 1);
+            }
         }
         else
         {
@@ -201,13 +278,24 @@ bool MeshObject::on_render_begin(
     if (!Object::on_render_begin(project, abort_switch))
         return false;
 
+    impl->m_is_displaced = false;
+
     const Source* displacement_map = m_inputs.source("displacement_map");
     if (displacement_map != nullptr)
     {
-        impl->build_displaced_surface(
-            displacement_map,
-            m_inputs.source("displacement_multiplier"));
-        impl->m_is_displaced = true;
+        if (get_tex_coords_count() > 0)
+        {
+            impl->build_displaced_surface(
+                displacement_map,
+                m_inputs.source("displacement_multiplier"));
+            impl->m_is_displaced = true;
+        }
+        else
+        {
+            RENDERER_LOG_WARNING(
+                "mesh object \"%s\" does not have texture coordinates, cannot apply displacement.",
+                get_path().c_str());
+        }
     }
 
     return true;

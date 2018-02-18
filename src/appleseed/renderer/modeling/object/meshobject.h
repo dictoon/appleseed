@@ -37,7 +37,6 @@
 #include "renderer/modeling/object/regionkit.h"
 
 // appleseed.foundation headers.
-#include "foundation/platform/compiler.h"
 #include "foundation/utility/autoreleaseptr.h"
 #include "foundation/utility/lazy.h"
 
