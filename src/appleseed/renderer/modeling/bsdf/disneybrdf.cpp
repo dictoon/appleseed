@@ -221,8 +221,8 @@ namespace
             if (values->m_subsurface > 0.0f)
             {
                 // Based on Hanrahan-Krueger BRDF approximation of isotropic BSRDF.
-                // The 1.25 scale is used to (roughly) preserve albedo.
-                // Fss90 is used to "flatten" retroreflection based on roughness.
+                // The 1.25 scaling factor is used to (roughly) preserve albedo.
+                // `fss90` is used to "flatten" retro-reflection based on roughness.
                 const float fss90 = square(cos_ih) * values->m_roughness;
                 const float fss = mix(1.0f, fss90, fl) * mix(1.0f, fss90, fv);
                 const float ss = 1.25f * (fss * (1.0f / (abs(cos_on) + abs(cos_in)) - 0.5f) + 0.5f);
