@@ -189,7 +189,8 @@ class MicrofacetBRDFHelper
             wi.y = std::abs(wi.y);
         }
 
-        const foundation::Vector3f m = foundation::normalize(wi + wo);
+        const foundation::Vector3f n(0.0f, 1.0f, 0.0f);
+        const foundation::Vector3f m = foundation::safe_normalize(wi + wo, n);
 
         const float D = mdf.D(m, alpha_x, alpha_y, gamma);
         const float G =
@@ -204,7 +205,6 @@ class MicrofacetBRDFHelper
         const float cos_on = std::abs(wo.y);
         const float cos_in = std::abs(wi.y);
 
-        const foundation::Vector3f n(0.0f, 1.0f, 0.0f);
         const float cos_oh = foundation::dot(wo, m);
 
         f(wo, m, n, value);
@@ -234,7 +234,9 @@ class MicrofacetBRDFHelper
             wi.y = std::abs(wi.y);
         }
 
-        const foundation::Vector3f m = foundation::normalize(wi + wo);
+        const foundation::Vector3f n(0.0f, 1.0f, 0.0f);
+        const foundation::Vector3f m = foundation::safe_normalize(wi + wo, n);
+
         return
             mdf.pdf(
                 wo,
