@@ -201,12 +201,13 @@ namespace
             // in Disney's BRDF explorer.
 
             const Vector3f n(shading_basis.get_normal());
-            const Vector3f h(normalize(incoming + outgoing));
+            const Vector3f unnormalized_h = incoming + outgoing;
+            const float norm_h = norm(unnormalized_h);
 
             // Using the absolute values of cos_on and cos_in creates discontinuities.
             const float cos_on = dot(n, outgoing);
             const float cos_in = dot(n, incoming);
-            const float cos_ih = dot(incoming, h);
+            const float cos_ih = norm_h > 0.0f ? dot(incoming, unnormalized_h / norm_h) : 0.0f;
 
             const float fl = schlick_fresnel(cos_in);
             const float fv = schlick_fresnel(cos_on);
