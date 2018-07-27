@@ -41,12 +41,12 @@ namespace studio {
 
 QtRendererController::QtRendererController()
 {
-    set_status(ContinueRendering);
+    set_intention(ContinueRendering);
 }
 
 void QtRendererController::on_rendering_begin()
 {
-    set_status(ContinueRendering);
+    set_intention(ContinueRendering);
 
     emit signal_rendering_begin();
 }
@@ -73,10 +73,10 @@ void QtRendererController::on_rendering_resume()
 
 void QtRendererController::on_frame_begin()
 {
-    const Status status = get_status();
+    const Intention intention = get_intention();
 
-    if (status == RestartRendering || status == ReinitializeRendering)
-        set_status(ContinueRendering);
+    if (intention == RestartRendering || intention == ReinitializeRendering)
+        set_intention(ContinueRendering);
 
     emit signal_frame_begin();
 }
@@ -86,14 +86,14 @@ void QtRendererController::on_frame_end()
     emit signal_frame_end();
 }
 
-void QtRendererController::set_status(const Status status)
+void QtRendererController::set_intention(const Intention intention)
 {
-    m_status = status;
+    m_intention = intention;
 }
 
-IRendererController::Status QtRendererController::get_status() const
+IRendererController::Intention QtRendererController::get_intention() const
 {
-    return m_status;
+    return m_intention;
 }
 
 }   // namespace studio

@@ -59,8 +59,8 @@ class APPLESEED_DLLSYMBOL TimedRendererController
     // This method is called before rendering a single frame.
     void on_frame_begin() override;
 
-    // Return the current rendering status.
-    Status get_status() const override;
+    // Return the current intention.
+    Intention get_intention() const override;
 
   private:
     struct Impl;
