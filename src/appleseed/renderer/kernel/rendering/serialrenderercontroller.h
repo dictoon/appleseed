@@ -71,7 +71,7 @@ class SerialRendererController
     void on_frame_begin() override;
     void on_frame_end() override;
     void on_progress() override;
-    Status get_status() const override;
+    Intention get_intention() const override;
 
     void add_on_tiled_frame_begin_callback(
         const Frame*            frame);

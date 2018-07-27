@@ -73,11 +73,11 @@ class QtRendererController
     // This method is called after rendering a single frame.
     void on_frame_end() override;
 
-    // Store a new status value.
-    void set_status(const Status status);
+    // Store a new intention value.
+    void set_intention(const Intention intention);
 
-    // Return the current rendering status.
-    Status get_status() const override;
+    // Return the current intention.
+    Intention get_intention() const override;
 
   signals:
     void signal_rendering_begin();
@@ -89,7 +89,7 @@ class QtRendererController
     void signal_frame_end();
 
   private:
-    boost::atomic<Status> m_status;
+    boost::atomic<Intention> m_intention;
 };
 
 }       // namespace studio

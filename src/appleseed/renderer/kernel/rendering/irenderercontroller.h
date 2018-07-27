@@ -74,29 +74,29 @@ class APPLESEED_DLLSYMBOL IRendererController
     // This method is called continuously during rendering.
     virtual void on_progress() = 0;
 
-    enum Status
+    enum Intention
     {
         // Continue/resume rendering.
-        ContinueRendering,
+        ContinueRendering = 1 << 0,
 
         // Pause rendering.
-        PauseRendering,
+        PauseRendering = 1 << 1,
 
         // Terminate rendering, call on_rendering_success() on the renderer controller.
-        TerminateRendering,
+        TerminateRendering = 1 << 2,
 
         // Terminate rendering, call on_rendering_abort() on the renderer controller.
-        AbortRendering,
+        AbortRendering = 1 << 3,
 
         // Restart rendering using the same configuration.
-        RestartRendering,
+        RestartRendering = 1 << 4,
 
         // Restart rendering from scratch, taking into account any configuration changes.
-        ReinitializeRendering
+        ReinitializeRendering = 1 << 5
     };
 
-    // Return the current rendering status.
-    virtual Status get_status() const = 0;
+    // Return the current intention.
+    virtual Intention get_intention() const = 0;
 };
 
 }       // namespace renderer

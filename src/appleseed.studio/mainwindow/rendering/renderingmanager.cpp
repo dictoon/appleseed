@@ -232,7 +232,7 @@ bool RenderingManager::is_rendering() const
 
 bool RenderingManager::is_rendering_paused() const
 {
-    return m_renderer_controller.get_status() == IRendererController::PauseRendering;
+    return m_renderer_controller.get_intention() == IRendererController::PauseRendering;
 }
 
 void RenderingManager::wait_until_rendering_end()
@@ -244,31 +244,31 @@ void RenderingManager::wait_until_rendering_end()
 void RenderingManager::abort_rendering()
 {
     RENDERER_LOG_INFO("aborting rendering...");
-    m_renderer_controller.set_status(IRendererController::AbortRendering);
+    m_renderer_controller.set_intention(IRendererController::AbortRendering);
 }
 
 void RenderingManager::restart_rendering()
 {
     RENDERER_LOG_DEBUG("restarting rendering...");
-    m_renderer_controller.set_status(IRendererController::RestartRendering);
+    m_renderer_controller.set_intention(IRendererController::RestartRendering);
 }
 
 void RenderingManager::reinitialize_rendering()
 {
     RENDERER_LOG_DEBUG("reinitializing rendering...");
-    m_renderer_controller.set_status(IRendererController::ReinitializeRendering);
+    m_renderer_controller.set_intention(IRendererController::ReinitializeRendering);
 }
 
 void RenderingManager::pause_rendering()
 {
     RENDERER_LOG_INFO("pausing rendering...");
-    m_renderer_controller.set_status(IRendererController::PauseRendering);
+    m_renderer_controller.set_intention(IRendererController::PauseRendering);
 }
 
 void RenderingManager::resume_rendering()
 {
     RENDERER_LOG_INFO("resuming rendering...");
-    m_renderer_controller.set_status(IRendererController::ContinueRendering);
+    m_renderer_controller.set_intention(IRendererController::ContinueRendering);
 }
 
 void RenderingManager::schedule(unique_ptr<IScheduledAction> action)

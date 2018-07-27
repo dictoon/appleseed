@@ -74,8 +74,8 @@ class APPLESEED_DLLSYMBOL DefaultRendererController
     // This method is called continuously during rendering.
     void on_progress() override;
 
-    // Return the current rendering status.
-    Status get_status() const override;
+    // Return the current intention.
+    Intention get_intention() const override;
 };
 
 }       // namespace renderer

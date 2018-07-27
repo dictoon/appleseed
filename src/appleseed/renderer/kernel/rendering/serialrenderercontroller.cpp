@@ -99,9 +99,9 @@ void SerialRendererController::on_progress()
     m_controller->on_progress();
 }
 
-IRendererController::Status SerialRendererController::get_status() const
+IRendererController::Intention SerialRendererController::get_intention() const
 {
-    return m_controller->get_status();
+    return m_controller->get_intention();
 }
 
 void SerialRendererController::add_on_tiled_frame_begin_callback(
