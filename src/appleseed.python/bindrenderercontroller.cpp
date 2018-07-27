@@ -177,7 +177,7 @@ namespace
             }
         }
 
-        Status get_status() const override
+        Intention get_intention() const override
         {
             // Lock Python's global interpreter lock (GIL),
             // it was released in MasterRenderer.render.
@@ -185,7 +185,7 @@ namespace
 
             try
             {
-                return get_override("get_status")();
+                return get_override("get_intention")();
             }
             catch (bpy::error_already_set)
             {
@@ -198,14 +198,13 @@ namespace
 
 void bind_renderer_controller()
 {
-    bpy::enum_<IRendererController::Status>("IRenderControllerStatus")
+    bpy::enum_<IRendererController::Intention>("IRenderControllerIntention")
         .value("ContinueRendering", IRendererController::ContinueRendering)
         .value("PauseRendering", IRendererController::PauseRendering)
         .value("TerminateRendering", IRendererController::TerminateRendering)
         .value("AbortRendering", IRendererController::AbortRendering)
         .value("RestartRendering", IRendererController::RestartRendering)
-        .value("ReinitializeRendering", IRendererController::ReinitializeRendering)
-        ;
+        .value("ReinitializeRendering", IRendererController::ReinitializeRendering);
 
     bpy::class_<IRendererControllerWrapper, boost::noncopyable>("IRendererController")
         .def("on_rendering_begin", bpy::pure_virtual(&IRendererController::on_rendering_begin))
@@ -214,8 +213,7 @@ void bind_renderer_controller()
         .def("on_frame_begin", bpy::pure_virtual(&IRendererController::on_frame_begin))
         .def("on_frame_end", bpy::pure_virtual(&IRendererController::on_frame_end))
         .def("on_progress", bpy::pure_virtual(&IRendererController::on_progress))
-        .def("get_status", bpy::pure_virtual(&IRendererController::get_status))
-        ;
+        .def("get_intention", bpy::pure_virtual(&IRendererController::get_intention));
 
     bpy::class_<DefaultRendererController, boost::noncopyable>("DefaultRendererController");
 }

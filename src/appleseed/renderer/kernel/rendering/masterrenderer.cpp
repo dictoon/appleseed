@@ -102,11 +102,11 @@ namespace
 
         bool is_aborted() override
         {
-            // Don't abort on IRendererController::ReinitializeRendering since this causes render setup to abort.
-            const IRendererController::Status status = m_renderer_controller.get_status();
+            const IRendererController::Intention intention = m_renderer_controller.get_intention();
             return
-                status == IRendererController::TerminateRendering ||
-                status == IRendererController::AbortRendering;
+                intention == IRendererController::TerminateRendering ||
+                intention == IRendererController::AbortRendering ||
+                intention == IRendererController::ReinitializeRendering;
         }
 
       private:
@@ -372,9 +372,9 @@ struct MasterRenderer::Impl
                 return RenderingResult::Aborted;
             }
 
-            const IRendererController::Status status = initialize_and_render_frame();
+            const IRendererController::Intention intention = initialize_and_render_frame();
 
-            switch (status)
+            switch (intention)
             {
               case IRendererController::TerminateRendering:
                 m_renderer_controller->on_rendering_success();
@@ -393,7 +393,7 @@ struct MasterRenderer::Impl
             // Perform post-render actions.
             recorder.on_render_end(m_project);
 
-            switch (status)
+            switch (intention)
             {
               case IRendererController::TerminateRendering:
                 return RenderingResult::Succeeded;
@@ -410,7 +410,7 @@ struct MasterRenderer::Impl
     }
 
     // Initialize rendering components and render a frame.
-    IRendererController::Status initialize_and_render_frame()
+    IRendererController::Intention initialize_and_render_frame()
     {
         // Construct an abort switch that will allow to abort initialization or rendering.
         RendererControllerAbortSwitch abort_switch(*m_renderer_controller);
@@ -439,7 +439,7 @@ struct MasterRenderer::Impl
 
         // Don't proceed further if initialization was aborted.
         if (abort_switch.is_aborted())
-            return m_renderer_controller->get_status();
+            return m_renderer_controller->get_intention();
 
         // Create renderer components.
         RendererComponents components(
@@ -464,7 +464,7 @@ struct MasterRenderer::Impl
         components.print_settings();
 
         // Execute the main rendering loop.
-        const auto status = render_frame(components, abort_switch);
+        const auto intention = render_frame(components, abort_switch);
 
         const CanvasProperties& props = m_project.get_frame()->image().properties();
         m_project.get_light_path_recorder().finalize(
@@ -474,11 +474,11 @@ struct MasterRenderer::Impl
         // Print texture store performance statistics.
         RENDERER_LOG_DEBUG("%s", texture_store.get_statistics().to_string().c_str());
 
-        return status;
+        return intention;
     }
 
     // Render a frame until completed or aborted and handle restart events.
-    IRendererController::Status render_frame(
+    IRendererController::Intention render_frame(
         RendererComponents&     components,
         IAbortSwitch&           abort_switch)
     {
@@ -514,9 +514,9 @@ struct MasterRenderer::Impl
             frame_renderer.start_rendering();
 
             // Wait until the the frame is completed or rendering is aborted.
-            const IRendererController::Status status = wait_for_event(frame_renderer);
+            const IRendererController::Intention intention = wait_for_event(frame_renderer);
 
-            switch (status)
+            switch (intention)
             {
               case IRendererController::TerminateRendering:
               case IRendererController::AbortRendering:
@@ -537,12 +537,12 @@ struct MasterRenderer::Impl
             recorder.on_frame_end(m_project);
             m_renderer_controller->on_frame_end();
 
-            switch (status)
+            switch (intention)
             {
               case IRendererController::TerminateRendering:
               case IRendererController::AbortRendering:
               case IRendererController::ReinitializeRendering:
-                return status;
+                return intention;
 
               case IRendererController::RestartRendering:
                 break;
@@ -553,7 +553,7 @@ struct MasterRenderer::Impl
     }
 
     // Wait until the the frame is completed or rendering is aborted.
-    IRendererController::Status wait_for_event(IFrameRenderer& frame_renderer) const
+    IRendererController::Intention wait_for_event(IFrameRenderer& frame_renderer) const
     {
         bool is_paused = false;
 
@@ -562,9 +562,9 @@ struct MasterRenderer::Impl
             if (!frame_renderer.is_rendering())
                 return IRendererController::TerminateRendering;
 
-            const IRendererController::Status status = m_renderer_controller->get_status();
+            const IRendererController::Intention intention = m_renderer_controller->get_intention();
 
-            switch (status)
+            switch (intention)
             {
               case IRendererController::ContinueRendering:
                 if (is_paused)
@@ -585,7 +585,7 @@ struct MasterRenderer::Impl
                 break;
 
               default:
-                return status;
+                return intention;
             }
 
             m_renderer_controller->on_progress();

@@ -69,7 +69,7 @@ void DefaultRendererController::on_progress()
 {
 }
 
-IRendererController::Status DefaultRendererController::get_status() const
+IRendererController::Intention DefaultRendererController::get_intention() const
 {
     return ContinueRendering;
 }

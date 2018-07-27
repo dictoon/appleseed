@@ -69,7 +69,7 @@ void TimedRendererController::on_frame_begin()
     impl->m_stopwatch.start();
 }
 
-IRendererController::Status TimedRendererController::get_status() const
+IRendererController::Intention TimedRendererController::get_intention() const
 {
     return
         impl->m_stopwatch.measure().get_seconds() > impl->m_seconds
