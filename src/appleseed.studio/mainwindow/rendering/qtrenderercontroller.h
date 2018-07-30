@@ -37,7 +37,12 @@
 #include "foundation/platform/atomic.h"
 
 // Qt headers.
+#include <QAbstractSocket>
 #include <QObject>
+
+// Forward declarations.
+class QEventLoop;
+class QTcpSocket;
 
 namespace appleseed {
 namespace studio {
@@ -73,6 +78,9 @@ class QtRendererController
     // This method is called after rendering a single frame.
     void on_frame_end() override;
 
+    // This method is called continuously during rendering.
+    void on_progress() override;
+
     // Store a new intention value.
     void set_intention(const Intention intention);
 
@@ -88,8 +96,18 @@ class QtRendererController
     void signal_frame_begin();
     void signal_frame_end();
 
+  private slots:
+    void slot_tcp_socket_connected();
+    void slot_tcp_socket_error(const QAbstractSocket::SocketError error);
+    void slot_tcp_socket_ready_read();
+
   private:
-    boost::atomic<Intention> m_intention;
+    boost::atomic<Intention>    m_intention;
+    QEventLoop*                 m_event_loop;
+    QTcpSocket*                 m_tcp_socket;
+
+    void connect_to_notification_server();
+    void disconnect_from_notification_server();
 };
 
 }       // namespace studio
