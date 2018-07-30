@@ -31,8 +31,11 @@
 #include "benchmarksuite.h"
 
 // appleseed.foundation headers.
+#include "foundation/math/rng/xoroshiro128plus.h"
+#include "foundation/math/scalar.h"
 #include "foundation/math/vector.h"
 #include "foundation/platform/compiler.h"
+#include "foundation/platform/system.h"
 #include "foundation/platform/thread.h"
 #include "foundation/platform/timers.h"
 #include "foundation/platform/types.h"
@@ -54,6 +57,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace std;
@@ -69,6 +73,33 @@ namespace foundation
 
 namespace
 {
+    // Ad hoc attempt at contaminating L1/L2/L3 caches.
+    void contaminate_cpu_caches()
+    {
+        const size_t l3_cache_size = System::get_l3_cache_size();
+        const size_t l1_cache_line_size = System::get_l1_data_cache_line_size();
+
+        const size_t block_size = l3_cache_size;
+        const size_t log_block_size = log2_int(block_size);
+        assert(log_block_size <= 32);
+
+        volatile uint8* block = new uint8[block_size];
+
+        Xoroshiro128plus rng;
+
+        for (size_t i = 0; i < block_size; ++i)
+            block[i] = rng.rand_uint32() >> 24;
+
+        for (size_t i = 0; i < block_size/* / l1_cache_line_size*/; ++i)
+        {
+            const size_t a = rng.rand_uint32() >> (32 - log_block_size);
+            const size_t b = rng.rand_uint32() >> (32 - log_block_size);
+            swap(block[a], block[b]);
+        }
+
+        delete[] block;
+    }
+
     // An empty benchmark case used for measuring the overhead of calling IBenchmarkCase::run().
     struct EmptyBenchmarkCase
       : public IBenchmarkCase
@@ -95,10 +126,26 @@ struct BenchmarkSuite::Impl
     string                          m_name;
     vector<IBenchmarkCaseFactory*>  m_factories;
 
+    static double measure_runtime_with_contamination_seconds(
+        IBenchmarkCase*         benchmark,
+        StopwatchType&          stopwatch)
+    {
+        stopwatch.start();
+
+        contaminate_cpu_caches();
+        benchmark->run();
+
+        stopwatch.measure();
+
+        return stopwatch.get_seconds();
+    }
+
     static double measure_runtime_seconds(
         IBenchmarkCase*         benchmark,
         StopwatchType&          stopwatch)
     {
+        contaminate_cpu_caches();
+
         stopwatch.start();
         benchmark->run();
         stopwatch.measure();
@@ -110,6 +157,8 @@ struct BenchmarkSuite::Impl
         IBenchmarkCase*         benchmark,
         StopwatchType&          stopwatch)
     {
+        contaminate_cpu_caches();
+
         stopwatch.start();
         benchmark->run();
         stopwatch.measure();
@@ -145,7 +194,7 @@ struct BenchmarkSuite::Impl
             measure_runtime(
                 benchmark,
                 stopwatch,
-                BenchmarkSuite::Impl::measure_runtime_seconds,
+                BenchmarkSuite::Impl::measure_runtime_with_contamination_seconds,
                 InitialMeasurementCount);
 
         // Compute the number of measurements to get an accurate runtime measure.
