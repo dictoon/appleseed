@@ -380,6 +380,9 @@ struct MasterRenderer::Impl
 
             m_renderer_controller->on_rendering_begin();
 
+            Stopwatch<DefaultWallclockTimer> stopwatch;
+            stopwatch.start();
+
             // Perform pre-render actions.
             OnRenderBeginRecorder recorder;
             if (!m_project.get_scene()->on_render_begin(m_project, nullptr, recorder, &abort_switch) ||
@@ -407,6 +410,9 @@ struct MasterRenderer::Impl
                   assert_otherwise;
                 }
             }
+
+            stopwatch.measure();
+            RENDERER_LOG_DEBUG("performed pre-render actions in %s.", pretty_time(stopwatch.get_seconds()).c_str());
 
             const InternalResult result = initialize_and_render_frame();
 
@@ -487,6 +493,9 @@ struct MasterRenderer::Impl
         if (!bind_scene_entities_inputs())
             return InternalResult::RenderingFailed;
 
+        Stopwatch<DefaultWallclockTimer> stopwatch;
+        stopwatch.start();
+
         // Perform post-inputs binding actions.
         if (!m_project.get_scene()->on_inputs_bound(m_project, nullptr, &abort_switch) ||
             abort_switch.is_aborted())
@@ -500,6 +509,9 @@ struct MasterRenderer::Impl
                 ? InternalResult::ControllerAskedToReinitialize
                 : InternalResult::ControllerAskedToAbort;
         }
+
+        stopwatch.measure();
+        RENDERER_LOG_DEBUG("performed post-inputs binding actions in %s.", pretty_time(stopwatch.get_seconds()).c_str());
 
         // Create the texture store.
         TextureStore texture_store(
@@ -580,6 +592,9 @@ struct MasterRenderer::Impl
             // of the scene which assumes the scene is up-to-date and ready to be rendered.
             m_renderer_controller->on_frame_begin();
 
+            Stopwatch<DefaultWallclockTimer> stopwatch;
+            stopwatch.start();
+
             // Perform pre-frame actions.
             OnFrameBeginRecorder recorder;
             if (!components.get_shading_engine().on_frame_begin(m_project, recorder, &abort_switch) ||
@@ -612,6 +627,9 @@ struct MasterRenderer::Impl
                   assert_otherwise;
                 }
             }
+
+            stopwatch.measure();
+            RENDERER_LOG_DEBUG("performed pre-frame actions in %s.", pretty_time(stopwatch.get_seconds()).c_str());
 
             // Retrieve the frame renderer.
             IFrameRenderer& frame_renderer = components.get_frame_renderer();
