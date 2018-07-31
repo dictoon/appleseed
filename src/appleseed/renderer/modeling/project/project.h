@@ -179,7 +179,7 @@ class APPLESEED_DLLSYMBOL Project
     void update_asset_paths(const foundation::StringDictionary& mappings) override;
 
     // This method is called once before rendering each frame.
-    // Returns true on success, false otherwise.
+    // Returns true on successful completion, false on error or abort.
     bool on_frame_begin(
         const Project&                  project,
         const BaseGroup*                parent,

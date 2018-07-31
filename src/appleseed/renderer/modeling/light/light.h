@@ -96,7 +96,7 @@ class APPLESEED_DLLSYMBOL Light
     const foundation::Transformd& get_transform() const;
 
     // This method is called once before rendering each frame.
-    // Returns true on success, false otherwise.
+    // Returns true on successful completion, false on error or abort.
     bool on_frame_begin(
         const Project&                  project,
         const BaseGroup*                parent,

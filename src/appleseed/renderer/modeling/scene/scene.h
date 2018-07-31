@@ -120,7 +120,7 @@ class APPLESEED_DLLSYMBOL Scene
         foundation::IAbortSwitch*   abort_switch = nullptr);
 
     // This method is called once before rendering.
-    // Returns true on success, false otherwise.
+    // Returns true on successful completion, false on error or abort.
     bool on_render_begin(
         const Project&              project,
         const BaseGroup*            parent,
@@ -133,7 +133,7 @@ class APPLESEED_DLLSYMBOL Scene
         const BaseGroup*            parent) override;
 
     // This method is called once before rendering each frame.
-    // Returns true on success, false otherwise.
+    // Returns true on successful completion, false on error or abort.
     bool on_frame_begin(
         const Project&              project,
         const BaseGroup*            parent,

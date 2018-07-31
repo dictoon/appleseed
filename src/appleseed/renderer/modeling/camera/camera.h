@@ -106,7 +106,7 @@ class APPLESEED_DLLSYMBOL Camera
     float get_shutter_middle_time() const;
 
     // This method is called once before rendering.
-    // Returns true on success, false otherwise.
+    // Returns true on successful completion, false on error or abort.
     bool on_render_begin(
         const Project&                  project,
         const BaseGroup*                parent,
