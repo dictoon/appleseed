@@ -126,9 +126,19 @@ TestSceneContext::TestSceneContext(TestSceneBase& base)
     assert(input_binder.get_error_count() == 0);
 
 #ifndef NDEBUG
-    bool success = 
+    bool success;
+#endif
+
+#ifndef NDEBUG
+    success =
 #endif
         m_base.m_scene.on_render_begin(m_base.m_project, nullptr, m_render_begin_recorder);
+    assert(success);
+
+#ifndef NDEBUG
+    success =
+#endif
+        m_base.m_scene.on_inputs_bound(m_base.m_project, nullptr);
     assert(success);
 
 #ifndef NDEBUG

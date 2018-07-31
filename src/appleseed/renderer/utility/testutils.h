@@ -97,7 +97,14 @@ class TestSceneBase
 
 
 //
-// Invoke on_render_begin/end() and on_frame_begin/end() hooks on all entities of a scene.
+// Invoke hooks on all entities of a scene, in order:
+//
+//   1.  on_render_begin()
+//   2.  on_inputs_bound()
+//   3.  on_frame_begin()
+//   ...
+//   4.  on_frame_end()
+//   5.  on_render_end()
 //
 
 class TestSceneContext

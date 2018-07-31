@@ -52,7 +52,6 @@ namespace renderer      { class BSSRDF; }
 namespace renderer      { class EDF; }
 namespace renderer      { class IBasisModifier; }
 namespace renderer      { class MessageContext; }
-namespace renderer      { class OnFrameBeginRecorder; }
 namespace renderer      { class ParamArray; }
 namespace renderer      { class Project; }
 namespace renderer      { class ShaderGroup; }
@@ -122,16 +121,15 @@ class APPLESEED_DLLSYMBOL Material
     // Return true if the material emits light.
     virtual bool has_emission() const;
 
-    // This method is called once before rendering each frame.
+    // This method is called right after inputs binding.
     // Returns true on success, false otherwise.
-    bool on_frame_begin(
+    bool on_inputs_bound(
         const Project&              project,
         const BaseGroup*            parent,
-        OnFrameBeginRecorder&       recorder,
         foundation::IAbortSwitch*   abort_switch = nullptr) override;
 
-    // This method is called once after rendering each frame (only if on_frame_begin() was called).
-    void on_frame_end(
+    // This method is called once after rendering.
+    void on_render_end(
         const Project&              project,
         const BaseGroup*            parent) override;
 

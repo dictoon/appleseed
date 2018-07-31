@@ -77,16 +77,15 @@ namespace
             return Model;
         }
 
-        bool on_frame_begin(
+        bool on_inputs_bound(
             const Project&          project,
             const BaseGroup*        parent,
-            OnFrameBeginRecorder&   recorder,
             IAbortSwitch*           abort_switch) override
         {
-            if (!Material::on_frame_begin(project, parent, recorder, abort_switch))
+            if (!Material::on_inputs_bound(project, parent, abort_switch))
                 return false;
 
-            const OnFrameBeginMessageContext context("material", this);
+            const OnRenderBeginMessageContext context("material", this);
 
             m_render_data.m_bsdf = get_uncached_bsdf();
             m_render_data.m_bssrdf = get_uncached_bssrdf();

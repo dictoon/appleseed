@@ -103,6 +103,13 @@ class APPLESEED_DLLSYMBOL BaseGroup
         OnRenderBeginRecorder&      recorder,
         foundation::IAbortSwitch*   abort_switch = nullptr);
 
+    // This method is called right after inputs binding.
+    // Returns true on success, false otherwise.
+    bool on_inputs_bound(
+        const Project&              project,
+        const BaseGroup*            parent,
+        foundation::IAbortSwitch*   abort_switch = nullptr);
+
     // This method is called once before rendering each frame.
     // Returns true on success, false otherwise.
     bool on_frame_begin(

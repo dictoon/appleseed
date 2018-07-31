@@ -188,6 +188,21 @@ bool BaseGroup::on_render_begin(
     return success;
 }
 
+bool BaseGroup::on_inputs_bound(
+    const Project&              project,
+    const BaseGroup*            parent,
+    IAbortSwitch*               abort_switch)
+{
+    bool success = true;
+    success = success && invoke_on_inputs_bound(colors(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(textures(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(texture_instances(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(shader_groups(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(assemblies(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(assembly_instances(), project, this, abort_switch);
+    return success;
+}
+
 bool BaseGroup::on_frame_begin(
     const Project&              project,
     const BaseGroup*            parent,

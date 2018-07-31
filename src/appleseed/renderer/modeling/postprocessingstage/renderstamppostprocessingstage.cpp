@@ -86,10 +86,9 @@ namespace
             return Model;
         }
 
-        bool on_frame_begin(
+        bool on_inputs_bound(
             const Project&          project,
             const BaseGroup*        parent,
-            OnFrameBeginRecorder&   recorder,
             IAbortSwitch*           abort_switch) override
         {
             const OnFrameBeginMessageContext context("post-processing stage", this);

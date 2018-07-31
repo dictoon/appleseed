@@ -92,22 +92,42 @@ namespace
             return false;
         }
 
-        bool on_frame_begin(
+        bool on_render_begin(
             const Project&          project,
             const BaseGroup*        parent,
-            OnFrameBeginRecorder&   recorder,
+            OnRenderBeginRecorder&  recorder,
             IAbortSwitch*           abort_switch = nullptr) override
         {
-            if (!Material::on_frame_begin(project, parent, recorder, abort_switch))
+            if (!Material::on_render_begin(project, parent, recorder, abort_switch))
                 return false;
 
-            if (!m_osl_bsdf->on_frame_begin(project, parent, recorder, abort_switch))
+            if (!m_osl_bsdf->on_render_begin(project, parent, recorder, abort_switch))
                 return false;
 
-            if (!m_osl_bssrdf->on_frame_begin(project, parent, recorder, abort_switch))
+            if (!m_osl_bssrdf->on_render_begin(project, parent, recorder, abort_switch))
                 return false;
 
-            if (!m_osl_edf->on_frame_begin(project, parent, recorder, abort_switch))
+            if (!m_osl_edf->on_render_begin(project, parent, recorder, abort_switch))
+                return false;
+
+            return true;
+        }
+
+        bool on_inputs_bound(
+            const Project&          project,
+            const BaseGroup*        parent,
+            IAbortSwitch*           abort_switch = nullptr) override
+        {
+            if (!Material::on_inputs_bound(project, parent, abort_switch))
+                return false;
+
+            if (!m_osl_bsdf->on_inputs_bound(project, parent, abort_switch))
+                return false;
+
+            if (!m_osl_bssrdf->on_inputs_bound(project, parent, abort_switch))
+                return false;
+
+            if (!m_osl_edf->on_inputs_bound(project, parent, abort_switch))
                 return false;
 
             m_render_data.m_shader_group = get_uncached_osl_surface();
@@ -126,6 +146,27 @@ namespace
                 if (m_render_data.m_shader_group->has_emission())
                     m_render_data.m_edf = m_osl_edf.get();
             }
+
+            return true;
+        }
+
+        bool on_frame_begin(
+            const Project&          project,
+            const BaseGroup*        parent,
+            OnFrameBeginRecorder&   recorder,
+            IAbortSwitch*           abort_switch = nullptr) override
+        {
+            if (!Material::on_frame_begin(project, parent, recorder, abort_switch))
+                return false;
+
+            if (!m_osl_bsdf->on_frame_begin(project, parent, recorder, abort_switch))
+                return false;
+
+            if (!m_osl_bssrdf->on_frame_begin(project, parent, recorder, abort_switch))
+                return false;
+
+            if (!m_osl_edf->on_frame_begin(project, parent, recorder, abort_switch))
+                return false;
 
             return true;
         }

@@ -353,7 +353,7 @@ bool Scene::on_render_begin(
     if (!Entity::on_render_begin(project, parent, recorder, abort_switch))
         return false;
 
-    if (!BaseGroup::on_render_begin(project, parent,recorder,  abort_switch))
+    if (!BaseGroup::on_render_begin(project, parent, recorder, abort_switch))
         return false;
 
     // The scene's render data must be computed before `on_render_begin()` is called on child entities,
@@ -391,6 +391,30 @@ void Scene::on_render_end(
         i->on_render_end(project, this);
 
     Entity::on_render_end(project, parent);
+}
+
+bool Scene::on_inputs_bound(
+    const Project&          project,
+    const BaseGroup*        parent,
+    IAbortSwitch*           abort_switch)
+{
+    if (!Entity::on_inputs_bound(project, parent, abort_switch))
+        return false;
+
+    if (!BaseGroup::on_inputs_bound(project, parent, abort_switch))
+        return false;
+
+    bool success = true;
+    success = success && impl->m_default_surface_shader->on_inputs_bound(project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(environment_edfs(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(environment_shaders(), project, this, abort_switch);
+    if (impl->m_environment.get())
+        success = success && impl->m_environment->on_inputs_bound(project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(cameras(), project, this, abort_switch);
+    if (!success)
+        return false;
+
+    return true;
 }
 
 bool Scene::on_frame_begin(

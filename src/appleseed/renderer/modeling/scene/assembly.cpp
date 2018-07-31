@@ -269,6 +269,31 @@ bool Assembly::on_render_begin(
     return success;
 }
 
+bool Assembly::on_inputs_bound(
+    const Project&          project,
+    const BaseGroup*        parent,
+    IAbortSwitch*           abort_switch)
+{
+    if (!Entity::on_inputs_bound(project, parent, abort_switch))
+        return false;
+
+    if (!BaseGroup::on_inputs_bound(project, parent, abort_switch))
+        return false;
+
+    bool success = true;
+    success = success && invoke_on_inputs_bound(bsdfs(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(bssrdfs(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(edfs(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(surface_shaders(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(materials(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(lights(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(objects(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(object_instances(), project, this, abort_switch);
+    success = success && invoke_on_inputs_bound(volumes(), project, this, abort_switch);
+
+    return success;
+}
+
 bool Assembly::on_frame_begin(
     const Project&          project,
     const BaseGroup*        parent,

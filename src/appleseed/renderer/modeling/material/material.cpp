@@ -167,13 +167,12 @@ bool Material::has_opaque_uniform_alpha_map() const
     return alpha == 1.0f;
 }
 
-bool Material::on_frame_begin(
+bool Material::on_inputs_bound(
     const Project&          project,
     const BaseGroup*        parent,
-    OnFrameBeginRecorder&   recorder,
     IAbortSwitch*           abort_switch)
 {
-    if (!ConnectableEntity::on_frame_begin(project, parent, recorder, abort_switch))
+    if (!ConnectableEntity::on_inputs_bound(project, parent, abort_switch))
         return false;
 
     assert(!m_has_render_data);
@@ -192,7 +191,7 @@ bool Material::on_frame_begin(
     return true;
 }
 
-void Material::on_frame_end(
+void Material::on_render_end(
     const Project&          project,
     const BaseGroup*        parent)
 {

@@ -157,6 +157,14 @@ void Entity::on_render_end(
 {
 }
 
+bool Entity::on_inputs_bound(
+    const Project&          project,
+    const BaseGroup*        parent,
+    IAbortSwitch*           abort_switch)
+{
+    return true;
+}
+
 bool Entity::on_frame_begin(
     const Project&          project,
     const BaseGroup*        parent,

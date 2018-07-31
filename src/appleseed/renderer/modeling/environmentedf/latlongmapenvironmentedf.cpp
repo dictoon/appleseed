@@ -199,13 +199,12 @@ namespace
             return Model;
         }
 
-        bool on_frame_begin(
+        bool on_inputs_bound(
             const Project&          project,
             const BaseGroup*        parent,
-            OnFrameBeginRecorder&   recorder,
             IAbortSwitch*           abort_switch) override
         {
-            if (!EnvironmentEDF::on_frame_begin(project, parent, recorder, abort_switch))
+            if (!EnvironmentEDF::on_inputs_bound(project, parent, abort_switch))
                 return false;
 
             // Don't do anything if this is not the active environment EDF.
@@ -214,24 +213,6 @@ namespace
                 return true;
 
             check_non_zero_emission("radiance", "radiance_multiplier");
-
-            return true;
-        }
-
-        bool on_render_begin(
-            const Project&          project,
-            const BaseGroup*        parent,
-            OnRenderBeginRecorder&  recorder,
-            IAbortSwitch*           abort_switch) override
-        {
-            if (!EnvironmentEDF::on_render_begin(project, parent, recorder, abort_switch))
-                return false;
-
-            // Don't do anything if this is not the active environment EDF.
-            const Environment* environment = project.get_scene()->get_environment();
-            if (environment->get_uncached_environment_edf() != this)
-                return true;
-
             build_importance_map(*project.get_scene(), abort_switch);
 
             return true;

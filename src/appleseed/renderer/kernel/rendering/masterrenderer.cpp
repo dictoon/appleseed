@@ -487,6 +487,20 @@ struct MasterRenderer::Impl
         if (!bind_scene_entities_inputs())
             return InternalResult::RenderingFailed;
 
+        // Perform post-inputs binding actions.
+        if (!m_project.get_scene()->on_inputs_bound(m_project, nullptr, &abort_switch) ||
+            abort_switch.is_aborted())
+        {
+            // If it wasn't an abort, it was a failure.
+            if (!abort_switch.is_aborted())
+                return InternalResult::RenderingFailed;
+
+            // Post-inputs binding actions were aborted.
+            return abort_switch.get_intention_causing_abort() == IRendererController::ReinitializeRendering
+                ? InternalResult::ControllerAskedToReinitialize
+                : InternalResult::ControllerAskedToAbort;
+        }
+
         // Create the texture store.
         TextureStore texture_store(
             *m_project.get_scene(),

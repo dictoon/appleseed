@@ -131,6 +131,13 @@ class APPLESEED_DLLSYMBOL Entity
         const Project&                  project,
         const BaseGroup*                parent);
 
+    // This method is called right after inputs binding.
+    // Returns true on success, false otherwise.
+    virtual bool on_inputs_bound(
+        const Project&                  project,
+        const BaseGroup*                parent,
+        foundation::IAbortSwitch*       abort_switch = nullptr);
+
     // This method is called once before rendering each frame.
     // Returns true on success, false otherwise.
     virtual bool on_frame_begin(
@@ -175,6 +182,14 @@ bool invoke_on_render_begin(
     const Project&                      project,
     const BaseGroup*                    parent,
     OnRenderBeginRecorder&              recorder,
+    foundation::IAbortSwitch*           abort_switch);
+
+// Utility function to invoke on_inputs_bound() on a collection of entities.
+template <typename EntityCollection>
+bool invoke_on_inputs_bound(
+    EntityCollection&                   entities,
+    const Project&                      project,
+    const BaseGroup*                    parent,
     foundation::IAbortSwitch*           abort_switch);
 
 // Utility function to invoke on_frame_begin() on a collection of entities.
@@ -260,6 +275,25 @@ bool invoke_on_render_begin(
             return false;
 
         if (!entity.on_render_begin(project, parent, recorder, abort_switch))
+            return false;
+    }
+
+    return true;
+}
+
+template <typename EntityCollection>
+bool invoke_on_inputs_bound(
+    EntityCollection&                   entities,
+    const Project&                      project,
+    const BaseGroup*                    parent,
+    foundation::IAbortSwitch*           abort_switch)
+{
+    for (auto& entity : entities)
+    {
+        if (foundation::is_aborted(abort_switch))
+            return false;
+
+        if (!entity.on_inputs_bound(project, parent, abort_switch))
             return false;
     }
 
