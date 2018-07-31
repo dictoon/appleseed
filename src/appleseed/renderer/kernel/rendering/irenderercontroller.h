@@ -56,7 +56,7 @@ class APPLESEED_DLLSYMBOL IRendererController
     // This method is called after rendering has succeeded.
     virtual void on_rendering_success() = 0;
 
-    // This method is called after rendering was aborted.
+    // This method is called after rendering has failed or was aborted.
     virtual void on_rendering_abort() = 0;
 
     // This method is called after rendering was paused.
