@@ -380,37 +380,31 @@ struct MasterRenderer::Impl
 
             m_renderer_controller->on_rendering_begin();
 
-            // Perform pre-render actions. Don't proceed if that failed.
+            // Perform pre-render actions.
             OnRenderBeginRecorder recorder;
             if (!m_project.get_scene()->on_render_begin(m_project, nullptr, recorder, &abort_switch) ||
                 abort_switch.is_aborted())
             {
-                // Perform post-render actions.
+                // Rollback pre-render actions.
                 recorder.on_render_end(m_project);
-                //m_renderer_controller->on_rendering_abort();    // todo: calling this here is debatable
 
-                // todo: possible race condition.
-                if (abort_switch.is_aborted())
-                {
-                    // Pre-frame actions were aborted because of the renderer controller's intention.
-                    switch (abort_switch.get_intention_causing_abort())
-                    {
-                      // Terminate during initialization = abort.
-                      case IRendererController::TerminateRendering:
-                      case IRendererController::AbortRendering:
-                        return RenderingResult::Aborted;
-
-                      case IRendererController::ReinitializeRendering:
-                        // Back to the beginning of the loop.
-                        continue;
-
-                      assert_otherwise;
-                    }
-                }
-                else
-                {
-                    // Pre-render actions failed.
+                // Pre-render actions weren't aborted, they failed.
+                if (!abort_switch.is_aborted())
                     return RenderingResult::Failed;
+
+                // Pre-render actions were aborted.
+                switch (abort_switch.get_intention_causing_abort())
+                {
+                  // Terminate during initialization = abort.
+                  case IRendererController::TerminateRendering:
+                  case IRendererController::AbortRendering:
+                    return RenderingResult::Aborted;
+
+                  case IRendererController::ReinitializeRendering:
+                    // Back to the beginning of the loop.
+                    continue;
+
+                  assert_otherwise;
                 }
             }
 
@@ -429,7 +423,7 @@ struct MasterRenderer::Impl
                 break;
 
               case InternalResult::ControllerAskedToReinitialize:
-                // Not calling neither `on_rendering_success()` nor `on_rendering_abort()` on the renderer controller.
+                // Don't call `on_rendering_success()` or `on_rendering_abort()` on the renderer controller.
                 break;
 
               assert_otherwise;
@@ -438,6 +432,7 @@ struct MasterRenderer::Impl
             // Perform post-render actions.
             recorder.on_render_end(m_project);
 
+            // Loop or leave.
             switch (result)
             {
               case InternalResult::RenderingEnded:
@@ -475,34 +470,17 @@ struct MasterRenderer::Impl
 
         // Expand all procedural assemblies.
         // todo: could this be done in Scene::on_render_begin()?
-        if (!m_project.get_scene()->expand_procedural_assemblies(m_project, &abort_switch))
+        if (!m_project.get_scene()->expand_procedural_assemblies(m_project, &abort_switch) ||
+            abort_switch.is_aborted())
         {
-            // return abort_switch.is_aborted()
-            //     ? InternalResult::ControllerAskedToAbort
-            //     : InternalResult::RenderingFailed;
-
-            // todo: possible race condition.
-            if (abort_switch.is_aborted())
-            {
-                // Pre-frame actions were aborted.
-                switch (abort_switch.get_intention_causing_abort())
-                {
-                  // Terminate during initialization = abort.
-                  case IRendererController::TerminateRendering:
-                  case IRendererController::AbortRendering:
-                    return InternalResult::ControllerAskedToAbort;
-
-                  case IRendererController::ReinitializeRendering:
-                    return InternalResult::ControllerAskedToReinitialize;
-
-                  assert_otherwise;
-                }
-            }
-            else
-            {
-                // Pre-render actions failed.
+            // If it wasn't an abort, it was a failure.
+            if (!abort_switch.is_aborted())
                 return InternalResult::RenderingFailed;
-            }
+
+            // Procedural assemblies expansion was aborted.
+            return abort_switch.get_intention_causing_abort() == IRendererController::ReinitializeRendering
+                ? InternalResult::ControllerAskedToReinitialize
+                : InternalResult::ControllerAskedToAbort;
         }
 
         // Bind entities inputs. This must be done before creating/updating the trace context.
@@ -515,54 +493,17 @@ struct MasterRenderer::Impl
             m_params.child("texture_store"));
 
         // Initialize OSL's shading system.
-        if (!initialize_osl_shading_system(texture_store, abort_switch))
+        if (!initialize_osl_shading_system(texture_store, abort_switch) ||
+            abort_switch.is_aborted())
         {
-            // return abort_switch.is_aborted()
-            //     ? InternalResult::ControllerAskedToAbort
-            //     : InternalResult::RenderingFailed;
-
-            // todo: possible race condition.
-            if (abort_switch.is_aborted())
-            {
-                // Pre-frame actions were aborted.
-                switch (abort_switch.get_intention_causing_abort())
-                {
-                  // Terminate during initialization = abort.
-                  case IRendererController::TerminateRendering:
-                  case IRendererController::AbortRendering:
-                    return InternalResult::ControllerAskedToAbort;
-
-                  case IRendererController::ReinitializeRendering:
-                    return InternalResult::ControllerAskedToReinitialize;
-
-                  assert_otherwise;
-                }
-            }
-            else
-            {
-                // Pre-render actions failed.
+            // If it wasn't an abort, it was a failure.
+            if (!abort_switch.is_aborted())
                 return InternalResult::RenderingFailed;
-            }
-        }
 
-        // Don't proceed further if initialization was aborted.
-        // if (abort_switch.is_aborted())
-        //     return InternalResult::ControllerAskedToAbort;
-        if (abort_switch.is_aborted())
-        {
-            // Pre-frame actions were aborted.
-            switch (abort_switch.get_intention_causing_abort())
-            {
-              // Terminate during initialization = abort.
-              case IRendererController::TerminateRendering:
-              case IRendererController::AbortRendering:
-                return InternalResult::ControllerAskedToAbort;
-
-              case IRendererController::ReinitializeRendering:
-                return InternalResult::ControllerAskedToReinitialize;
-
-                assert_otherwise;
-            }
+            // OSL shading system initialization was aborted.
+            return abort_switch.get_intention_causing_abort() == IRendererController::ReinitializeRendering
+                ? InternalResult::ControllerAskedToReinitialize
+                : InternalResult::ControllerAskedToAbort;
         }
 
         // Create renderer components.
@@ -625,41 +566,36 @@ struct MasterRenderer::Impl
             // of the scene which assumes the scene is up-to-date and ready to be rendered.
             m_renderer_controller->on_frame_begin();
 
-            // Perform pre-frame actions. Don't proceed if that failed.
+            // Perform pre-frame actions.
             OnFrameBeginRecorder recorder;
             if (!components.get_shading_engine().on_frame_begin(m_project, recorder, &abort_switch) ||
                 !m_project.on_frame_begin(m_project, nullptr, recorder, &abort_switch) ||
                 abort_switch.is_aborted())
             {
-                // Perform post-frame actions.
+                // Rollback post-frame actions.
                 recorder.on_frame_end(m_project);
                 m_renderer_controller->on_frame_end();
 
-                // todo: possible race condition.
-                if (abort_switch.is_aborted())
-                {
-                    // Pre-frame actions were aborted.
-                    switch (abort_switch.get_intention_causing_abort())
-                    {
-                      // Terminate during initialization = abort.
-                      case IRendererController::TerminateRendering:
-                      case IRendererController::AbortRendering:
-                        return InternalResult::ControllerAskedToAbort;
-
-                      case IRendererController::ReinitializeRendering:
-                        return InternalResult::ControllerAskedToReinitialize;
-
-                      case IRendererController::RestartRendering:
-                        // Back to the beginning of the loop.
-                        continue;
-
-                      assert_otherwise;
-                    }
-                }
-                else
-                {
-                    // Pre-frame actions failed.
+                // Pre-frame actions weren't aborted, they failed.
+                if (!abort_switch.is_aborted())
                     return InternalResult::RenderingFailed;
+
+                // Pre-frame actions were aborted.
+                switch (abort_switch.get_intention_causing_abort())
+                {
+                  // Terminate during initialization = abort.
+                  case IRendererController::TerminateRendering:
+                  case IRendererController::AbortRendering:
+                    return InternalResult::ControllerAskedToAbort;
+
+                  case IRendererController::ReinitializeRendering:
+                    return InternalResult::ControllerAskedToReinitialize;
+
+                  case IRendererController::RestartRendering:
+                    // Back to the beginning of the loop.
+                    continue;
+
+                  assert_otherwise;
                 }
             }
 
@@ -673,6 +609,7 @@ struct MasterRenderer::Impl
             // Wait until rendering has ended normally or has been interrupted.
             const InternalResult result = wait_for_event(frame_renderer);
 
+            // Stop rendering.
             switch (result)
             {
               case InternalResult::RenderingEnded:
@@ -695,6 +632,7 @@ struct MasterRenderer::Impl
             recorder.on_frame_end(m_project);
             m_renderer_controller->on_frame_end();
 
+            // Loop or leave.
             switch (result)
             {
               case InternalResult::RenderingEnded:
