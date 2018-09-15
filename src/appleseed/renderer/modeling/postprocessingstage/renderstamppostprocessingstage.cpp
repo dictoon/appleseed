@@ -99,7 +99,9 @@ namespace
             return true;
         }
 
-        void execute(Frame& frame) const override
+        void execute(
+            const Frame&            original_frame,
+            Frame&                  working_frame) const override
         {
             // Render stamp settings.
             const auto Font = TextRenderer::Font::UbuntuL;
@@ -110,7 +112,7 @@ namespace
             const float MarginV = 4.0f;
 
             // Retrieve additional render info from the frame.
-            const ParamArray& render_info = frame.render_info();
+            const ParamArray& render_info = working_frame.render_info();
             const double render_time = render_info.get_optional<double>("render_time", 0.0);
 
             // Compute the final string.
@@ -125,14 +127,14 @@ namespace
             text = replace(text, "{peak-memory}", pretty_size(System::get_peak_process_virtual_memory_size()).c_str());
 
             // Compute the height in pixels of the string.
-            const CanvasProperties& props = frame.image().properties();
+            const CanvasProperties& props = working_frame.image().properties();
             const float image_height = static_cast<float>(props.m_canvas_height);
             const float text_height = TextRenderer::compute_string_height(FontHeight, text.c_str());
             const float origin_y = image_height - text_height - MarginV;
 
             // Draw the background rectangle.
             Drawing::draw_filled_rect(
-                frame.image(),
+                working_frame.image(),
                 Vector2i(
                     0,
                     truncate<int>(origin_y - MarginV)),
@@ -143,7 +145,7 @@ namespace
 
             // Draw the string into the image.
             TextRenderer::draw_string(
-                frame.image(),
+                working_frame.image(),
                 ColorSpaceLinearRGB,
                 Font,
                 FontHeight,
@@ -154,7 +156,7 @@ namespace
 
             // Blit the appleseed logo.
             Drawing::blit_bitmap(
-                frame.image(),
+                working_frame.image(),
                 Vector2i(
                     static_cast<int>(MarginH),
                     static_cast<int>(props.m_canvas_height - appleseed_seeds_16_height - MarginV)),

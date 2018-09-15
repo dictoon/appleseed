@@ -72,7 +72,8 @@ class APPLESEED_DLLSYMBOL PostProcessingStage
 
     // Execute this post-processing stage on a given frame.
     virtual void execute(
-        Frame&                  frame) const = 0;
+        const Frame&            original_frame,
+        Frame&                  working_frame) const = 0;
 
   protected:
     template <typename Func>

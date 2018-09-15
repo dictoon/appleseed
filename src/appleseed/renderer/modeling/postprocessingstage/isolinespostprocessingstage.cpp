@@ -30,6 +30,7 @@
 #include "isolinespostprocessingstage.h"
 
 // appleseed.renderer headers.
+#include "renderer/global/globallogger.h"
 #include "renderer/modeling/frame/frame.h"
 #include "renderer/modeling/postprocessingstage/postprocessingstage.h"
 
@@ -43,9 +44,12 @@
 #include "foundation/math/distance.h"
 #include "foundation/math/scalar.h"
 #include "foundation/math/vector.h"
+#include "foundation/platform/defaulttimers.h"
+#include "foundation/utility/api/apistring.h"
 #include "foundation/utility/api/specializedapiarrays.h"
 #include "foundation/utility/containers/dictionary.h"
 #include "foundation/utility/otherwise.h"
+#include "foundation/utility/stopwatch.h"
 
 // Standard headers.
 #include <cassert>
@@ -99,30 +103,58 @@ namespace
             return true;
         }
 
-        void execute(Frame& frame) const override
+        void execute(
+            const Frame&            original_frame,
+            Frame&                  working_frame) const override
         {
-            Image& image = frame.image();
-            const CanvasProperties& props = image.properties();
+            Stopwatch<DefaultWallclockTimer> sw(0), totalsw(0);
+            totalsw.start();
+
+            const Image& original_image = original_frame.image();
+            const CanvasProperties& props = original_image.properties();
 
             if (props.m_canvas_width <= 1 || props.m_canvas_height <= 1)
                 return;
 
-            SegmentVector segments;
-
             for (size_t level = 0; level < m_levels; ++level)
             {
+                SegmentVector segments;
+
                 const float isovalue =
                     fit<size_t, float>(level, 0, m_levels - 1, m_low_isovalue, m_high_isovalue);
+
+                sw.start();
 
                 for (size_t y = 0; y < props.m_canvas_height - 1; ++y)
                 {
                     for (size_t x = 0; x < props.m_canvas_width - 1; ++x)
-                        find_contour_segment(image, props, x, y, isovalue, segments);
+                        find_contour_segment(original_image, props, x, y, isovalue, segments);
                 }
+
+                sw.measure();
+                RENDERER_LOG_DEBUG("isoline post-processing stage \"%s\": detection (" FMT_SIZE_T ") executed in %f ms.",
+                    get_path().c_str(),
+                    segments.size(),
+                    sw.get_seconds() * 1000.0);
+
+                sw.start();
+
+                Image& working_image = working_frame.image();
+
+                for (const Segment& seg : segments)
+                    rasterize(working_image, props, seg);
+
+                sw.measure();
+                RENDERER_LOG_DEBUG("isoline post-processing stage \"%s\": rasterization executed in %s (%f us/segment).",
+                    get_path().c_str(),
+                    pretty_time(sw.get_seconds()).c_str(),
+                    sw.get_seconds() * 1000000.0 / segments.size());
             }
 
-            for (const Segment& seg : segments)
-                rasterize(image, props, seg);
+            totalsw.measure();
+            RENDERER_LOG_DEBUG("isoline post-processing stage \"%s\": TOTAL: %s.",
+                get_path().c_str(),
+                pretty_time(totalsw.get_seconds()).c_str());
         }
 
       private:

@@ -32,6 +32,7 @@
 
 // appleseed.renderer headers.
 #include "renderer/modeling/aov/aovcontainer.h"
+#include "renderer/modeling/aov/aovfactoryregistrar.h"
 #include "renderer/modeling/entity/entity.h"
 #include "renderer/modeling/postprocessingstage/postprocessingstagecontainer.h"
 
@@ -205,7 +206,8 @@ class APPLESEED_DLLSYMBOL Frame
     Frame(
         const char*                 name,
         const ParamArray&           params,
-        const AOVContainer&         aovs);
+        const AOVContainer&         aovs,
+        const AOVFactoryRegistrar&  aov_registrar);
 
     // Destructor.
     ~Frame() override;
@@ -230,13 +232,16 @@ class APPLESEED_DLLSYMBOL FrameFactory
     // Create a new frame.
     static foundation::auto_release_ptr<Frame> create(
         const char*                 name,
-        const ParamArray&           params);
+        const ParamArray&           params,
+        const AOVContainer&         aovs = AOVContainer());
 
-    // Create a new frame.
-    static foundation::auto_release_ptr<Frame> create(
+    foundation::auto_release_ptr<Frame> fast_create(
         const char*                 name,
         const ParamArray&           params,
-        const AOVContainer&         aovs);
+        const AOVContainer&         aovs = AOVContainer());
+
+  private:
+    const AOVFactoryRegistrar       m_aov_registrar;
 };
 
 

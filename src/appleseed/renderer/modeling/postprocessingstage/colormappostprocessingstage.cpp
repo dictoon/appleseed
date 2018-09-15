@@ -186,14 +186,16 @@ namespace
             return true;
         }
 
-        void execute(Frame& frame) const override
+        void execute(
+            const Frame&            original_frame,
+            Frame&                  working_frame) const override
         {
             float min_luminance, max_luminance;
 
             if (m_auto_range)
             {
                 Color4f min_color, max_color;
-                find_min_max(frame, min_color, max_color);
+                find_min_max(working_frame, min_color, max_color);
 
                 min_luminance = luminance(min_color.rgb());
                 max_luminance = luminance(max_color.rgb());
@@ -212,10 +214,10 @@ namespace
                 min_luminance,
                 max_luminance);
 
-            remap_colors(frame, min_luminance, max_luminance);
+            remap_colors(working_frame, min_luminance, max_luminance);
 
             if (m_add_legend_bar)
-                add_legend_bar(frame, min_luminance, max_luminance);
+                add_legend_bar(working_frame, min_luminance, max_luminance);
         }
 
       private:

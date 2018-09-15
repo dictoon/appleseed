@@ -36,7 +36,6 @@
 #include "renderer/kernel/aov/imagestack.h"
 #include "renderer/kernel/denoising/denoiser.h"
 #include "renderer/modeling/aov/aov.h"
-#include "renderer/modeling/aov/aovfactoryregistrar.h"
 #include "renderer/modeling/aov/denoiseraov.h"
 #include "renderer/modeling/aov/iaovfactory.h"
 #include "renderer/modeling/postprocessingstage/postprocessingstage.h"
@@ -117,9 +116,10 @@ struct Frame::Impl
 };
 
 Frame::Frame(
-    const char*         name,
-    const ParamArray&   params,
-    const AOVContainer& aovs)
+    const char*                 name,
+    const ParamArray&           params,
+    const AOVContainer&         aovs,
+    const AOVFactoryRegistrar&  aov_registrar)
   : Entity(g_class_uid, params)
   , impl(new Impl())
 {
@@ -156,7 +156,7 @@ Frame::Frame(
     }
 
     // Copy and add AOVs.
-    const AOVFactoryRegistrar aov_registrar;
+    AOVFactoryRegistrar bob;
     for (size_t i = 0, e = min(aovs.size(), MaxAOVCount); i < e; ++i)
     {
         const AOV* original_aov = aovs.get_by_index(i);
@@ -1134,21 +1134,24 @@ DictionaryArray FrameFactory::get_input_metadata()
 
 auto_release_ptr<Frame> FrameFactory::create(
     const char*         name,
-    const ParamArray&   params)
+    const ParamArray&   params,
+    const AOVContainer& aovs)
 {
+    const AOVFactoryRegistrar aov_registrar;
+
     return
         auto_release_ptr<Frame>(
-            new Frame(name, params, AOVContainer()));
+            new Frame(name, params, aovs, aov_registrar));
 }
 
-auto_release_ptr<Frame> FrameFactory::create(
+auto_release_ptr<Frame> FrameFactory::fast_create(
     const char*         name,
     const ParamArray&   params,
     const AOVContainer& aovs)
 {
     return
         auto_release_ptr<Frame>(
-            new Frame(name, params, aovs));
+            new Frame(name, params, aovs, m_aov_registrar));
 }
 
 }   // namespace renderer

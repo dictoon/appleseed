@@ -66,7 +66,7 @@ class FalseColorsWindow
         const foundation::Dictionary&   values);
 
   signals:
-    void signal_set_enabled(const bool enabled);
+    //void signal_set_enabled(const bool enabled);
     void signal_applied(foundation::Dictionary values);
     void signal_accepted(foundation::Dictionary values);
     void signal_canceled(foundation::Dictionary values);
@@ -75,13 +75,26 @@ class FalseColorsWindow
     // Not wrapped in std::unique_ptr<> to avoid pulling in the UI definition code.
     Ui::FalseColorsWindow*              m_ui;
 
-    std::unique_ptr<EntityEditor>       m_entity_editor;
     foundation::Dictionary              m_initial_values;
+    std::unique_ptr<EntityEditor>       m_false_colors_entity_editor;
+    std::unique_ptr<EntityEditor>       m_isolines_entity_editor;
 
     void create_connections();
 
+    void initialize_false_colors(
+        const renderer::Project&        project,
+        renderer::ParamArray&           settings,
+        const foundation::Dictionary&   values);
+
+    void initialize_isolines(
+        const renderer::Project&        project,
+        renderer::ParamArray&           settings,
+        const foundation::Dictionary&   values);
+
+    foundation::Dictionary get_values() const;
+
   private slots:
-    void slot_toggle_enable_false_colors();
+    void slot_apply();
     void slot_accept();
     void slot_cancel();
 };

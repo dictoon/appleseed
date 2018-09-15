@@ -43,6 +43,7 @@
 #include "mainwindow/statusbar.h"
 
 // appleseed.renderer headers.
+#include "renderer/api/frame.h"
 #include "renderer/api/utility.h"
 
 // Qt headers.
@@ -176,6 +177,8 @@ class MainWindow
     bool                                        m_fullscreen;
     OCIO::ConstConfigRcPtr                      m_ocio_config;
 
+    renderer::FrameFactory                      m_frame_factory;
+
     // Menus.
     void build_menus();
     void build_override_shading_menu_item();
@@ -230,6 +233,9 @@ class MainWindow
 
     // Diagnostics.
     void apply_false_colors_settings();
+    void apply_post_processing_stage(
+        renderer::PostProcessingStage&  stage,
+        renderer::Frame&                working_frame);
 
     // Miscellaneous.
     void print_startup_information();
@@ -277,7 +283,6 @@ class MainWindow
     void slot_clear_shading_override();
     void slot_set_shading_override();
     void slot_show_false_colors_window();
-    void slot_set_false_colors_enabled(const bool enabled);
     void slot_apply_false_colors_settings_changes(foundation::Dictionary values);
 
     // Render region.

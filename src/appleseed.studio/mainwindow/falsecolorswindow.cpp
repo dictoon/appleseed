@@ -48,6 +48,7 @@
 
 // Qt headers.
 #include <QDialogButtonBox>
+#include <QGroupBox>
 #include <QShortcut>
 #include <Qt>
 
@@ -60,23 +61,27 @@ namespace studio {
 
 namespace
 {
-    struct FalseColorsPostProcessingStageFormFactory
+    class PostProcessingStageFormFactory
       : public EntityEditor::IFormFactory
     {
+      public:
+        explicit PostProcessingStageFormFactory(
+            const DictionaryArray                   input_metadata)
+          : m_input_metadata(input_metadata)
+        {
+
+        }
         void update(
             const Dictionary&                       values,
             EntityEditor::InputMetadataCollection&  metadata) const override
         {
             metadata.clear();
 
-            const DictionaryArray input_metadata =
-                ColorMapPostProcessingStageFactory().get_input_metadata();
-
             // Note that we don't expose name or model inputs.
 
-            for (size_t i = 0; i < input_metadata.size(); ++i)
+            for (size_t i = 0; i < m_input_metadata.size(); ++i)
             {
-                Dictionary im = input_metadata[i];
+                Dictionary im = m_input_metadata[i];
                 const string input_name = im.get<string>("name");
 
                 // Don't expose the order input either. 
@@ -91,6 +96,9 @@ namespace
                 metadata.push_back(im);
             }
         }
+
+      private:
+        const DictionaryArray m_input_metadata;
     };
 }
 
@@ -111,18 +119,39 @@ FalseColorsWindow::~FalseColorsWindow()
 }
 
 void FalseColorsWindow::initialize(
-    const Project&                              project,
-    ParamArray&                                 settings,
-    const Dictionary&                           values)
+    const Project&      project,
+    ParamArray&         settings,
+    const Dictionary&   values)
 {
-    unique_ptr<EntityEditor::IFormFactory> form_factory(
-        new FalseColorsPostProcessingStageFormFactory());
-
     m_initial_values = values;
 
-    m_entity_editor.reset(
+    initialize_false_colors(
+        project,
+        settings,
+        values.dictionaries().exist("false_colors")
+            ? values.dictionary("false_colors")
+            : Dictionary());
+
+    initialize_isolines(
+        project,
+        settings,
+        values.dictionaries().exist("isolines")
+            ? values.dictionary("isolines")
+            : Dictionary());
+}
+
+void FalseColorsWindow::initialize_false_colors(
+    const Project&      project,
+    ParamArray&         settings,
+    const Dictionary&   values)
+{
+    unique_ptr<EntityEditor::IFormFactory> form_factory(
+        new PostProcessingStageFormFactory(
+            ColorMapPostProcessingStageFactory().get_input_metadata()));
+
+    m_false_colors_entity_editor.reset(
         new EntityEditor(
-            m_ui->scrollarea_contents,
+            m_ui->groupbox_false_colors,
             project,
             settings,
             std::move(form_factory),
@@ -131,22 +160,59 @@ void FalseColorsWindow::initialize(
             values));
 
     connect(
-        m_entity_editor.get(), SIGNAL(signal_applied(foundation::Dictionary)),
-        SIGNAL(signal_applied(foundation::Dictionary)));
+        m_false_colors_entity_editor.get(), SIGNAL(signal_applied(foundation::Dictionary)),
+        SLOT(slot_apply()));
 
     const bool enabled =
         values.strings().exist("enabled") &&
         values.strings().get<bool>("enabled");
 
-    m_ui->checkbox_enable_false_colors->setChecked(enabled);
-    m_ui->scrollarea->setEnabled(enabled);
+    const bool were_blocked = m_ui->groupbox_false_colors->blockSignals(true);
+    m_ui->groupbox_false_colors->setChecked(enabled);
+    m_ui->groupbox_false_colors->blockSignals(were_blocked);
+}
+
+void FalseColorsWindow::initialize_isolines(
+    const Project&      project,
+    ParamArray&         settings,
+    const Dictionary&   values)
+{
+    unique_ptr<EntityEditor::IFormFactory> form_factory(
+        new PostProcessingStageFormFactory(
+            IsolinesPostProcessingStageFactory().get_input_metadata()));
+
+    m_isolines_entity_editor.reset(
+        new EntityEditor(
+            m_ui->groupbox_isolines,
+            project,
+            settings,
+            std::move(form_factory),
+            nullptr,    // no entity browser
+            nullptr,    // no custom UI
+            values));
+
+    connect(
+        m_isolines_entity_editor.get(), SIGNAL(signal_applied(foundation::Dictionary)),
+        SLOT(slot_apply()));
+
+    const bool enabled =
+        values.strings().exist("enabled") &&
+        values.strings().get<bool>("enabled");
+
+    const bool were_blocked = m_ui->groupbox_isolines->blockSignals(true);
+    m_ui->groupbox_isolines->setChecked(enabled);
+    m_ui->groupbox_isolines->blockSignals(were_blocked);
 }
 
 void FalseColorsWindow::create_connections()
 {
     connect(
-        m_ui->checkbox_enable_false_colors, SIGNAL(stateChanged(int)),
-        SLOT(slot_toggle_enable_false_colors()));
+        m_ui->groupbox_false_colors, SIGNAL(toggled(bool)),
+        SLOT(slot_apply()));
+
+    connect(
+        m_ui->groupbox_isolines, SIGNAL(toggled(bool)),
+        SLOT(slot_apply()));
 
     connect(m_ui->buttonbox, SIGNAL(accepted()), SLOT(slot_accept()));
     connect(m_ui->buttonbox, SIGNAL(rejected()), SLOT(slot_cancel()));
@@ -154,6 +220,7 @@ void FalseColorsWindow::create_connections()
     connect(
         create_window_local_shortcut(this, QKeySequence("Ctrl+Return")), SIGNAL(activated()),
         SLOT(slot_accept()));
+
     connect(
         create_window_local_shortcut(this, QKeySequence("Ctrl+Enter")), SIGNAL(activated()),
         SLOT(slot_accept()));
@@ -163,25 +230,40 @@ void FalseColorsWindow::create_connections()
         SLOT(slot_cancel()));
 }
 
-void FalseColorsWindow::slot_toggle_enable_false_colors()
+Dictionary FalseColorsWindow::get_values() const
 {
-    const bool enabled = m_ui->checkbox_enable_false_colors->checkState() == Qt::Checked;
+    Dictionary values;
 
-    m_ui->scrollarea->setEnabled(enabled);
+    values.insert(
+        "false_colors",
+        m_false_colors_entity_editor->get_values()
+            .insert("enabled", m_ui->groupbox_false_colors->isChecked())
+            .insert("order", 0));   // actual value irrelevant
 
-    emit signal_set_enabled(enabled);;
+    values.insert(
+        "isolines",
+        m_isolines_entity_editor->get_values()
+            .insert("enabled", m_ui->groupbox_isolines->isChecked())
+            .insert("order", 0));   // actual value irrelevant
+
+    return values;
+}
+
+void FalseColorsWindow::slot_apply()
+{
+    emit signal_applied(get_values());
 }
 
 void FalseColorsWindow::slot_accept()
 {
-    emit signal_accepted(m_entity_editor->get_values());
+    emit signal_accepted(get_values());
 
     close();
 }
 
 void FalseColorsWindow::slot_cancel()
 {
-    if (m_initial_values != m_entity_editor->get_values())
+    if (m_initial_values != get_values())
         emit signal_canceled(m_initial_values);
 
     close();

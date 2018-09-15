@@ -634,12 +634,21 @@ struct MasterRenderer::Impl
             }
         }
 
+        // Make a copy of the unaltered frame.
+        // Warning: render info, AOVs and other data are not copied.
+        // todo: switch to generic entity cloning mechanism.
+        auto_release_ptr<Frame> original_frame(
+            FrameFactory::create(
+                (string(frame->get_name()) + "_original").c_str(),
+                frame->get_parameters()));
+        original_frame->image().copy_from(frame->image());
+
         // Execute post-processing stages.
         for (auto stage : ordered_stages)
         {
             RENDERER_LOG_INFO("executing \"%s\" post-processing stage with order %d on frame \"%s\"...",
                 stage->get_path().c_str(), stage->get_order(), frame->get_path().c_str());
-            stage->execute(*frame);
+            stage->execute(*original_frame, *frame);
             invoke_tile_callbacks(*frame);
         }
     }
