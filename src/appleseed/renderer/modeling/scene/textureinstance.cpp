@@ -110,12 +110,17 @@ TextureInstance::TextureInstance(
 
     // Retrieve the texture alpha mode.
     const string alpha_mode =
-        m_params.get_optional<string>("alpha_mode", "alpha_channel", make_vector("alpha_channel", "luminance", "detect"), context);
+        m_params.get_optional<string>(
+            "alpha_mode",
+            "alpha_channel",
+            make_vector("alpha_channel", "rgb_average" "rec709_luminance", "detect"), context);
     if (alpha_mode == "alpha_channel")
-        m_alpha_mode = TextureAlphaModeAlphaChannel;
-    else if (alpha_mode == "luminance")
-        m_alpha_mode = TextureAlphaModeLuminance;
-    else m_alpha_mode = TextureAlphaModeDetect;
+        m_alpha_mode = TextureAlphaMode::AlphaChannel;
+    else if (alpha_mode == "rgb_average")
+        m_alpha_mode = TextureAlphaMode::RGBAverage;
+    else if (alpha_mode == "rec709_luminance")
+        m_alpha_mode = TextureAlphaMode::Rec709Luminance;
+    else m_alpha_mode = TextureAlphaMode::Detect;
 
     // Until a texture is bound, the effective alpha mode is simply the user-selected alpha mode.
     m_effective_alpha_mode = m_alpha_mode;
@@ -203,12 +208,12 @@ namespace
                     texture.unload_tile(x, y, tile);
 
                     if (has_transparency)
-                        return TextureAlphaModeAlphaChannel;
+                        return TextureAlphaMode::AlphaChannel;
                 }
             }
         }
 
-        return TextureAlphaModeLuminance;
+        return TextureAlphaMode::RGBAverage;
     }
 }
 
@@ -222,14 +227,15 @@ void TextureInstance::bind_texture(const TextureContainer& textures)
         // We cannot do it in on_frame_begin() because the texture instance might be needed
         // before it gets called. For instance, updating the trace context implies updating
         // the intersection filters, and those need to be able to sample texture instances.
-        if (m_effective_alpha_mode == TextureAlphaModeDetect)
+        if (m_effective_alpha_mode == TextureAlphaMode::Detect)
         {
             m_effective_alpha_mode = detect_alpha_mode(*m_texture);
 
-            RENDERER_LOG_DEBUG(
+            RENDERER_LOG_INFO(
                 "texture instance \"%s\" was detected to use the \"%s\" alpha mode.",
                 get_path().c_str(),
-                m_effective_alpha_mode == TextureAlphaModeAlphaChannel ? "alpha_channel" : "luminance");
+                m_effective_alpha_mode == TextureAlphaMode::AlphaChannel ? "alpha_channel" :
+                m_effective_alpha_mode == TextureAlphaMode::RGBAverage ? "rgb_average" : "rec709_luminance");
         }
     }
 }
@@ -281,7 +287,8 @@ DictionaryArray TextureInstanceFactory::get_input_metadata()
             .insert("items",
                 Dictionary()
                     .insert("Alpha Channel", "alpha_channel")
-                    .insert("Luminance", "luminance")
+                    .insert("RGB Average", "rgb_average")
+                    .insert("Rec. 709 Luminance", "rec709_luminance")
                     .insert("Detect", "detect"))
             .insert("use", "optional")
             .insert("default", "alpha_channel"));

@@ -152,9 +152,10 @@ void bind_texture()
         .value("EWA", TextureFilteringEWA);
 
     bpy::enum_<TextureAlphaMode>("TextureAlphaMode")
-        .value("AlphaChannel", TextureAlphaModeAlphaChannel)
-        .value("Luminance", TextureAlphaModeLuminance)
-        .value("Detect", TextureAlphaModeDetect);
+        .value("AlphaChannel", TextureAlphaMode::AlphaChannel)
+        .value("RGBAverage", TextureAlphaMode::RGBAverage)
+        .value("Rec709Luminance", TextureAlphaMode::Rec709Luminance)
+        .value("Detect", TextureAlphaMode::Detect);
 
     bpy::class_<Texture, auto_release_ptr<Texture>, bpy::bases<Entity>, boost::noncopyable>("Texture", bpy::no_init)
         .def("get_model_metadata", &detail::get_entity_model_metadata<TextureFactoryRegistrar>).staticmethod("get_model_metadata")

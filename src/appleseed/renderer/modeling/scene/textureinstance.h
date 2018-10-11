@@ -74,11 +74,12 @@ enum TextureFilteringMode
     TextureFilteringEWA
 };
 
-enum TextureAlphaMode
+enum class TextureAlphaMode
 {
-    TextureAlphaModeAlphaChannel,
-    TextureAlphaModeLuminance,
-    TextureAlphaModeDetect
+    AlphaChannel,
+    RGBAverage,
+    Rec709Luminance,                    // Rec. 709 luminance
+    Detect
 };
 
 

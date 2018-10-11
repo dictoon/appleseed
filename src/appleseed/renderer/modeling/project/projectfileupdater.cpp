@@ -71,6 +71,7 @@
 #include "renderer/modeling/scene/containers.h"
 #include "renderer/modeling/scene/objectinstance.h"
 #include "renderer/modeling/scene/scene.h"
+#include "renderer/modeling/scene/textureinstance.h"
 #include "renderer/modeling/surfaceshader/physicalsurfaceshader.h"
 #include "renderer/modeling/surfaceshader/surfaceshader.h"
 #include "renderer/utility/paramarray.h"
@@ -1821,7 +1822,7 @@ namespace
         }
 
       private:
-        // Remove pixel_renderer::enable_diagnostics and frame::save_extra_aovs.
+        // Remove "[uniform,adaptive]_pixel_renderer.enable_diagnostics" and "frame.save_extra_aovs".
         void remove_diagnostic_option()
         {
             for (Configuration& config : m_project.configurations())
@@ -1850,7 +1851,7 @@ namespace
             frame_params.strings().remove("save_extra_aovs");
         }
 
-        // Move generic_frame_renderer::passes to the root configuration.
+        // Move "generic_frame_renderer.passes" to the root configuration.
         void update_passes_path()
         {
             for (Configuration& config : m_project.configurations())
@@ -1867,6 +1868,47 @@ namespace
                     if (gfr.empty())
                         root.dictionaries().remove("generic_frame_renderer");
                 }
+            }
+        }
+    };
+
+    //
+    // Update from revision 27 to revision 28.
+    //
+
+    class UpdateFromRevision_27
+      : public Updater
+    {
+      public:
+        explicit UpdateFromRevision_27(Project& project)
+          : Updater(project, 27)
+        {
+        }
+
+        void update() override
+        {
+            if (Scene* scene = m_project.get_scene())
+                update(*scene);
+        }
+
+      private:
+        void update(BaseGroup& base_group)
+        {
+            for (TextureInstance& texture_instance : base_group.texture_instances())
+                update(texture_instance);
+
+            for (Assembly& assembly : base_group.assemblies())
+                update(assembly);
+        }
+
+        void update(TextureInstance& texture_instance)
+        {
+            ParamArray& params = texture_instance.get_parameters();
+
+            if (params.strings().exist("alpha_mode"))
+            {
+                if (params.get<string>("alpha_mode") == "luminance")
+                    params.set("alpha_mode", "rgb_average");
             }
         }
     };
@@ -1929,6 +1971,7 @@ void ProjectFileUpdater::update(
       CASE_UPDATE_FROM_REVISION(24);
       CASE_UPDATE_FROM_REVISION(25);
       CASE_UPDATE_FROM_REVISION(26);
+      CASE_UPDATE_FROM_REVISION(27);
 
       case ProjectFormatRevision:
         // Project is up-to-date.

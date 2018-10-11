@@ -40,6 +40,7 @@
 // appleseed.foundation headers.
 #include "foundation/image/canvasproperties.h"
 #include "foundation/image/color.h"
+#include "foundation/image/colorspace.h"
 #include "foundation/math/transform.h"
 #include "foundation/math/vector.h"
 #include "foundation/platform/compiler.h"
@@ -162,7 +163,11 @@ inline void TextureSource::evaluate(
     const SourceInputs&                     source_inputs,
     float&                                  scalar) const
 {
-    const foundation::Color4f color = sample_texture(texture_cache, foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+    const foundation::Color4f color =
+        sample_texture(
+            texture_cache,
+            foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+
     scalar = color[0];
 }
 
@@ -171,7 +176,11 @@ inline void TextureSource::evaluate(
     const SourceInputs&                     source_inputs,
     foundation::Color3f&                    linear_rgb) const
 {
-    const foundation::Color4f color = sample_texture(texture_cache, foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+    const foundation::Color4f color =
+        sample_texture(
+            texture_cache,
+            foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+
     linear_rgb = color.rgb();
 }
 
@@ -180,7 +189,11 @@ inline void TextureSource::evaluate(
     const SourceInputs&                     source_inputs,
     Spectrum&                               spectrum) const
 {
-    const foundation::Color4f color = sample_texture(texture_cache, foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+    const foundation::Color4f color =
+        sample_texture(
+            texture_cache,
+            foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+
     spectrum.set(color.rgb(), g_std_lighting_conditions, Spectrum::Reflectance);
 }
 
@@ -189,7 +202,11 @@ inline void TextureSource::evaluate(
     const SourceInputs&                     source_inputs,
     Alpha&                                  alpha) const
 {
-    const foundation::Color4f color = sample_texture(texture_cache, foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+    const foundation::Color4f color =
+        sample_texture(
+            texture_cache,
+            foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+
     evaluate_alpha(color, alpha);
 }
 
@@ -199,7 +216,11 @@ inline void TextureSource::evaluate(
     foundation::Color3f&                    linear_rgb,
     Alpha&                                  alpha) const
 {
-    const foundation::Color4f color = sample_texture(texture_cache, foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+    const foundation::Color4f color =
+        sample_texture(
+            texture_cache,
+            foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+
     linear_rgb = color.rgb();
     evaluate_alpha(color, alpha);
 }
@@ -210,7 +231,11 @@ inline void TextureSource::evaluate(
     Spectrum&                               spectrum,
     Alpha&                                  alpha) const
 {
-    const foundation::Color4f color = sample_texture(texture_cache, foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+    const foundation::Color4f color =
+        sample_texture(
+            texture_cache,
+            foundation::Vector2f(source_inputs.m_uv_x, source_inputs.m_uv_y));
+
     spectrum.set(color.rgb(), g_std_lighting_conditions, Spectrum::Reflectance);
     evaluate_alpha(color, alpha);
 }
@@ -221,12 +246,16 @@ inline void TextureSource::evaluate_alpha(
 {
     switch (m_texture_instance.get_effective_alpha_mode())
     {
-      case TextureAlphaModeAlphaChannel:
+      case TextureAlphaMode::AlphaChannel:
         alpha.set(color.a);
         break;
 
-      case TextureAlphaModeLuminance:
-        alpha.set(average_value(color.rgb()));
+      case TextureAlphaMode::RGBAverage:
+        alpha.set(foundation::average_value(color.rgb()));
+        break;
+
+      case TextureAlphaMode::Rec709Luminance:
+        alpha.set(foundation::luminance(color.rgb()));
         break;
 
       assert_otherwise;
