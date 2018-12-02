@@ -61,6 +61,10 @@ class LCG
     // Constructor, seeds the generator.
     explicit LCG(const uint32 seed = 0);
 
+    // Comparison operators.
+    bool operator==(const LCG& rhs) const;
+    bool operator!=(const LCG& rhs) const;
+
     // Generate a 32-bit random number.
     uint32 rand_uint32();
 
@@ -76,6 +80,16 @@ class LCG
 inline LCG::LCG(const uint32 seed)
   : m_s(seed)
 {
+}
+
+inline bool LCG::operator==(const LCG& rhs) const
+{
+    return m_s == rhs.m_s;
+}
+
+inline bool LCG::operator!=(const LCG& rhs) const
+{
+    return !(*this == rhs);
 }
 
 inline uint32 LCG::rand_uint32()

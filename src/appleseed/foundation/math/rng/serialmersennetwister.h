@@ -49,6 +49,10 @@ class APPLESEED_DLLSYMBOL SerialMersenneTwister
     explicit SerialMersenneTwister(const uint32 seed = 5489UL);
     SerialMersenneTwister(const uint32 init_key[], const int key_length);
 
+    // Comparison operators. Expensive!
+    bool operator==(const SerialMersenneTwister& rhs) const;
+    bool operator!=(const SerialMersenneTwister& rhs) const;
+
     // Generate a 32-bit random number.
     uint32 rand_uint32();
 
@@ -70,6 +74,22 @@ class APPLESEED_DLLSYMBOL SerialMersenneTwister
 //
 // SerialMersenneTwister class implementation.
 //
+
+inline bool SerialMersenneTwister::operator==(const SerialMersenneTwister& rhs) const
+{
+    for (int i = 0; i < N; ++i)
+    {
+        if (mt[i] != rhs.mt[i])
+            return false;
+    }
+
+    return mti == rhs.mti;
+}
+
+inline bool SerialMersenneTwister::operator!=(const SerialMersenneTwister& rhs) const
+{
+    return !(*this == rhs);
+}
 
 inline uint32 SerialMersenneTwister::rand_uint32()
 {

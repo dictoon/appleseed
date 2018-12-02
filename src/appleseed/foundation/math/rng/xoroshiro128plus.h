@@ -58,6 +58,10 @@ class Xoroshiro128plus
     Xoroshiro128plus();
     explicit Xoroshiro128plus(const uint64 s0, const uint64 s1);
 
+    // Comparison operators.
+    bool operator==(const Xoroshiro128plus& rhs) const;
+    bool operator!=(const Xoroshiro128plus& rhs) const;
+
     // Generate a 32-bit random number.
     uint32 rand_uint32();
 
@@ -81,6 +85,18 @@ inline Xoroshiro128plus::Xoroshiro128plus(const uint64 s0, const uint64 s1)
     assert(s0 != 0 || s1 != 0);     // if the seed is 0 everywhere, all output values will be 0
     m_s[0] = s0;
     m_s[1] = s1;
+}
+
+inline bool Xoroshiro128plus::operator==(const Xoroshiro128plus& rhs) const
+{
+    return
+        m_s[0] == rhs.m_s[0] &&
+        m_s[1] == rhs.m_s[1];
+}
+
+inline bool Xoroshiro128plus::operator!=(const Xoroshiro128plus& rhs) const
+{
+    return !(*this == rhs);
 }
 
 inline uint32 Xoroshiro128plus::rand_uint32()

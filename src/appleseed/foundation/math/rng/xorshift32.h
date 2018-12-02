@@ -63,6 +63,10 @@ class Xorshift32
     // The seed must not be zero.
     explicit Xorshift32(const uint32 seed = 2463534242UL);
 
+    // Comparison operators.
+    bool operator==(const Xorshift32& rhs) const;
+    bool operator!=(const Xorshift32& rhs) const;
+
     // Generate a 32-bit random number.
     uint32 rand_uint32();
 
@@ -79,6 +83,16 @@ inline Xorshift32::Xorshift32(const uint32 seed)
   : m_s(seed)
 {
     assert(seed != 0);  // if the seed is 0, all output values will be 0
+}
+
+inline bool Xorshift32::operator==(const Xorshift32& rhs) const
+{
+    return m_s == rhs.m_s;
+}
+
+inline bool Xorshift32::operator!=(const Xorshift32& rhs) const
+{
+    return !(*this == rhs);
 }
 
 inline uint32 Xorshift32::rand_uint32()

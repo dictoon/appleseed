@@ -50,6 +50,10 @@ class PCG
         const uint64 init_state = 0x853C49E6748FEA9BULL,
         const uint64 init_seq = 0xDA3E39CB94B95BDBULL);
 
+    // Comparison operators.
+    bool operator==(const PCG& rhs) const;
+    bool operator!=(const PCG& rhs) const;
+
     // Generate a 32-bit random number.
     uint32 rand_uint32();
 
@@ -71,6 +75,18 @@ inline PCG::PCG(const uint64 init_state, const uint64 init_seq)
 
     m_state += init_state;
     rand_uint32();
+}
+
+inline bool PCG::operator==(const PCG& rhs) const
+{
+    return
+        m_state == rhs.m_state &&
+        m_inc == rhs.m_inc;
+}
+
+inline bool PCG::operator!=(const PCG& rhs) const
+{
+    return !(*this == rhs);
 }
 
 #pragma warning (push)

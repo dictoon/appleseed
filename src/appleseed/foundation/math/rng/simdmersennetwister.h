@@ -52,6 +52,10 @@ class APPLESEED_DLLSYMBOL SimdMersenneTwister
     explicit SimdMersenneTwister(const uint32 seed = 5489UL);
     SimdMersenneTwister(const uint32 init_key[], const int key_length);
 
+    // Comparison operators. Expensive!
+    bool operator==(const SimdMersenneTwister& rhs) const;
+    bool operator!=(const SimdMersenneTwister& rhs) const;
+
     // Generate a 32-bit random number.
     uint32 rand_uint32();
 
@@ -91,6 +95,25 @@ class APPLESEED_DLLSYMBOL SimdMersenneTwister
 //
 // SimdMersenneTwister class implementation.
 //
+
+inline bool SimdMersenneTwister::operator==(const SimdMersenneTwister& rhs) const
+{
+    for (int i = 0; i < N; ++i)
+    {
+        if (mt[i].u[0] != rhs.mt[i].u[0] ||
+            mt[i].u[1] != rhs.mt[i].u[1] ||
+            mt[i].u[2] != rhs.mt[i].u[2] ||
+            mt[i].u[3] != rhs.mt[i].u[3])
+            return false;
+    }
+
+    return mti == rhs.mti;
+}
+
+inline bool SimdMersenneTwister::operator!=(const SimdMersenneTwister& rhs) const
+{
+    return !(*this == rhs);
+}
 
 inline uint32 SimdMersenneTwister::rand_uint32()
 {
