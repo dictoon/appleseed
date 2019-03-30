@@ -35,15 +35,19 @@
 #include "foundation/math/rng/mersennetwister.h"
 #include "foundation/math/scalar.h"
 #include "foundation/math/vector.h"
+#include "foundation/platform/defaulttimers.h"
 #include "foundation/platform/timers.h"
 #include "foundation/utility/iostreamop.h"
+#include "foundation/utility/memory.h"
 #include "foundation/utility/test.h"
+#include "foundation/utility/stopwatch.h"
 
 // Standard headers.
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <iostream>
 #include <vector>
 
 using namespace foundation;
@@ -460,5 +464,270 @@ TEST_SUITE(Foundation_Math_Knn_Query)
 
         auto make_query_point = [&rng, &points]() { return points[rand_int1(rng, 0, static_cast<int32>(points.size()) - 1)]; };
         EXPECT_TRUE(do_results_match_naive_algorithm(points, AnswerSize, QueryCount, make_query_point));
+    }
+
+    struct NeighborData
+    {
+        size_t                  m_lookup_point;
+        vector<size_t>          m_neighbors;
+    };
+
+    struct SampleMesh
+    {
+        vector<Vector3f>        m_points;
+        size_t                  m_index_begin;   // inclusive
+        size_t                  m_index_end;     // exclusive
+        knn::Tree3f             m_tree;
+        vector<NeighborData>    m_neighbor_data;
+    };
+
+    TEST_CASE(SamTest)
+    {
+#if 1
+        static const char* MiscDataFilePath = "unit tests/inputs/miscData3.txt";
+        static const char* SampleDataFilePath = "unit tests/inputs/sampleData3.txt";
+        static const char* NeighboursDataFilePath = "unit tests/inputs/neighboursData3.txt";
+#elif 0
+        static const char* MiscDataFilePath = "unit tests/inputs/miscData2.txt";
+        static const char* SampleDataFilePath = "unit tests/inputs/sampleData2.txt";
+        static const char* NeighboursDataFilePath = "unit tests/inputs/neighboursData2.txt";
+#elif 0
+        static const char* MiscDataFilePath = "unit tests/inputs/miscData1.txt";
+        static const char* SampleDataFilePath = "unit tests/inputs/sampleData1.txt";
+        static const char* NeighboursDataFilePath = "unit tests/inputs/neighboursData1.txt";
+#endif
+
+        Stopwatch<DefaultWallclockTimer> sw;
+
+        //
+        // Read miscData.txt.
+        //
+
+        float radius;
+
+        {
+            FILE* f = fopen(MiscDataFilePath, "rt");
+            assert(f);
+
+            char token[100];
+            fscanf(f, "%s %f\n", token, &radius);
+            fclose(f);
+        }
+
+        //
+        // Read sampleData.txt.
+        //
+
+        vector<SampleMesh> sample_meshes;
+
+        {
+            FILE* f = fopen(SampleDataFilePath, "rt");
+            assert(f);
+
+            SampleMesh current_mesh;
+            current_mesh.m_index_begin = 0;
+            current_mesh.m_index_end = ~size_t(0);
+
+            size_t current_index = 0;
+
+            while (!feof(f))
+            {
+                char buf[16 * 1024];
+                if (fgets(buf, sizeof(buf), f) == nullptr)
+                    break;
+
+                Vector3f p;
+                if (sscanf(buf, "%f %f %f\n", &p.x, &p.y, &p.z) == 3)
+                {
+                    current_mesh.m_points.push_back(p);
+                    ++current_index;
+                }
+                else
+                {
+                    if (!current_mesh.m_points.empty())
+                    {
+                        current_mesh.m_points.shrink_to_fit();
+                        current_mesh.m_index_end = current_mesh.m_index_begin + current_mesh.m_points.size();
+                        sample_meshes.push_back(current_mesh);
+                    }
+
+                    current_mesh = SampleMesh();
+                    current_mesh.m_index_begin = current_index;
+                }
+            }
+
+            if (!current_mesh.m_points.empty())
+                sample_meshes.push_back(current_mesh);
+
+            fclose(f);
+            sample_meshes.shrink_to_fit();
+        }
+
+        //
+        // Read neighboursData.txt.
+        //
+
+        {
+            FILE* f = fopen(NeighboursDataFilePath, "rt");
+            assert(f);
+
+            while (!feof(f))
+            {
+                char buf[16 * 1024];
+                if (fgets(buf, sizeof(buf), f) == nullptr)
+                    break;
+
+                char* ptr = buf;
+                int offset = 0;
+
+                NeighborData nd;
+                if (sscanf(ptr, "%llu%n", &nd.m_lookup_point, &offset) != 1)
+                    break;
+
+                ptr += offset;
+
+                SampleMesh* sample_mesh = &sample_meshes[0];
+                while (sample_mesh->m_index_end <= nd.m_lookup_point)
+                {
+                    ++sample_mesh;
+                    assert(sample_mesh < &sample_meshes[0] + sample_meshes.size());
+                }
+
+                assert(nd.m_lookup_point >= sample_mesh->m_index_begin);
+                assert(nd.m_lookup_point < sample_mesh->m_index_end);
+
+                while (true)
+                {
+                    size_t index;
+                    if (sscanf(ptr, "%llu%n", &index, &offset) != 1)
+                        break;
+
+                    assert(index >= sample_mesh->m_index_begin);
+                    assert(index < sample_mesh->m_index_end);
+
+                    ptr += offset;
+                    nd.m_neighbors.push_back(index - sample_mesh->m_index_begin);
+                }
+
+                nd.m_neighbors.shrink_to_fit();
+                sort(nd.m_neighbors.begin(), nd.m_neighbors.end());
+
+                sample_mesh->m_neighbor_data.push_back(nd);
+            }
+
+            fclose(f);
+
+            for (SampleMesh& sample_mesh : sample_meshes)
+                sample_mesh.m_neighbor_data.shrink_to_fit();
+        }
+
+        //
+        // Build trees.
+        //
+
+        sw.start();
+
+        for (SampleMesh& sample_mesh : sample_meshes)
+        {
+            knn::Builder3f builder(sample_mesh.m_tree);
+            builder.build<DefaultWallclockTimer>(&sample_mesh.m_points[0], sample_mesh.m_points.size());
+        }
+
+        cerr << "construction in " << sw.measure().get_seconds() * 1000.0 << " ms" << endl;
+
+        //
+        // Perform queries.
+        //
+
+        const float query_max_square_distance = radius * radius;
+
+        size_t max_answer_size = 0;
+
+        for (const SampleMesh& sample_mesh : sample_meshes)
+        {
+            for (const NeighborData& nd : sample_mesh.m_neighbor_data)
+                max_answer_size = max(max_answer_size, nd.m_neighbors.size());
+        }
+
+        // Add one because we will always find the lookup point itself as a neighbor (at distance 0).
+        ++max_answer_size;
+
+        max_answer_size = next_pow2(max_answer_size);
+
+        cerr << "max_answer_size = " << max_answer_size << endl;
+
+        size_t query_count = 0, dummy = 0;
+        knn::Answer<float> answer(max_answer_size);
+        vector<size_t> answer_indices;
+
+        sw.start();
+
+        for (const SampleMesh& sample_mesh : sample_meshes)
+        {
+            for (const NeighborData& nd : sample_mesh.m_neighbor_data)
+            {
+                assert(nd.m_lookup_point >= sample_mesh.m_index_begin);
+                assert(nd.m_lookup_point < sample_mesh.m_index_end);
+
+                const size_t local_lookup_point_index = nd.m_lookup_point - sample_mesh.m_index_begin;
+                const Vector3f& lookup_point = sample_mesh.m_points[local_lookup_point_index];
+
+                knn::Query3f query(sample_mesh.m_tree, answer);
+                query.run(lookup_point, query_max_square_distance);
+                ++query_count;
+                dummy += answer.size();
+
+#ifdef DEBUG
+                clear_keep_memory(answer_indices);
+                for (size_t i = 0, e = answer.size(); i < e; ++i)
+                {
+                    const auto& entry = answer.get(i);
+                    assert(entry.m_square_dist <= query_max_square_distance);
+
+                    const size_t point_index = sample_mesh.m_tree.remap(entry.m_index);
+                    answer_indices.push_back(point_index);
+
+                    const float neighbor_square_dist = square_distance(sample_mesh.m_points[point_index], lookup_point);
+                    assert(neighbor_square_dist <= query_max_square_distance);
+                }
+
+                const auto self_it = find(answer_indices.begin(), answer_indices.end(), local_lookup_point_index);
+                assert(self_it != answer_indices.end());
+                answer_indices.erase(self_it);
+
+                sort(answer_indices.begin(), answer_indices.end());
+
+                if (answer_indices.size() != nd.m_neighbors.size())
+                {
+                    cerr << "query_max_square_distance: " << query_max_square_distance << endl;
+                    cerr << "point: " << nd.m_lookup_point << endl;
+
+                    cerr << "answer:" << endl;
+                    for (const size_t point_index : answer_indices)
+                    {
+                        const Vector3f& neighbor_point = sample_mesh.m_points[point_index];
+                        const size_t neighbor_index = point_index + sample_mesh.m_index_begin;
+                        const float neighbor_square_dist = square_distance(neighbor_point, lookup_point);
+                        cerr << "  " << neighbor_index << "\t\t" << neighbor_square_dist << endl;
+                    }
+
+                    cerr << "ref:" << endl;
+                    for (const size_t point_index : nd.m_neighbors)
+                    {
+                        const Vector3f& neighbor_point = sample_mesh.m_points[point_index];
+                        const size_t neighbor_index = point_index + sample_mesh.m_index_begin;
+                        const float neighbor_square_dist = square_distance(neighbor_point, lookup_point);
+                        cerr << "  " << neighbor_index << "\t\t" << neighbor_square_dist << endl;
+                    }
+                }
+                else
+                {
+                    assert(answer_indices == nd.m_neighbors);
+                }
+#endif
+            }
+        }
+
+        cerr << query_count << " queries in " << sw.measure().get_seconds() * 1000.0 << " ms (dummy = " << dummy << ")" << endl;
     }
 }
