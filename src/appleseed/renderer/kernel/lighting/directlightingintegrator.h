@@ -105,6 +105,16 @@ class DirectLightingIntegrator
         DirectShadingComponents&        radiance,
         LightPathStream*                light_path_stream) const;
 
+    void take_single_material_sample(
+        SamplingContext&                sampling_context,
+        const foundation::MISHeuristic  mis_heuristic,
+        const foundation::Dual3d&       outgoing,
+        DirectShadingComponents&        radiance) const;
+
+    void compute_irradiance(
+        SamplingContext&                sampling_context,
+        Spectrum&                       irradiance) const;
+
   private:
     friend class VolumeLightingIntegrator;
 
@@ -117,12 +127,6 @@ class DirectLightingIntegrator
     const size_t                        m_material_sample_count;
     const size_t                        m_light_sample_count;
     const bool                          m_indirect;
-
-    void take_single_material_sample(
-        SamplingContext&                sampling_context,
-        const foundation::MISHeuristic  mis_heuristic,
-        const foundation::Dual3d&       outgoing,
-        DirectShadingComponents&        radiance) const;
 
     void add_emitting_shape_sample_contribution(
         SamplingContext&                sampling_context,
@@ -138,6 +142,15 @@ class DirectLightingIntegrator
         const foundation::Dual3d&       outgoing,
         DirectShadingComponents&        radiance,
         LightPathStream*                light_path_stream) const;
+
+    void add_emitting_shape_sample_contribution_to_irradiance(
+        const LightSample&              sample,
+        Spectrum&                       irradiance) const;
+
+    void add_non_physical_light_sample_contribution_to_irradiance(
+        SamplingContext&                sampling_context,
+        const LightSample&              sample,
+        Spectrum&                       irradiance) const;
 };
 
 }   // namespace renderer

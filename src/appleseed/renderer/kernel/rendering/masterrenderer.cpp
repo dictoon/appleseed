@@ -542,6 +542,17 @@ struct MasterRenderer::Impl
             m_project.get_frame()->print_settings();
             m_project.get_scene()->get_active_camera()->print_settings();
 
+            // todo: HACK
+            if (components.get_backward_light_sampler() != nullptr)
+            {
+                components.get_backward_light_sampler()->create_sampling_probes(
+                    *m_project.get_frame(),
+                    components.get_trace_context(),
+                    components.get_texture_store(),
+                    components.get_oiio_texture_system(),
+                    components.get_osl_shading_system());
+            }
+
             IFrameRenderer& frame_renderer = components.get_frame_renderer();
             assert(!frame_renderer.is_rendering());
 

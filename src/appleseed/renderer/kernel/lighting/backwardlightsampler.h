@@ -45,9 +45,14 @@
 
 // Forward declarations.
 namespace foundation    { class Dictionary; }
+namespace renderer      { class Frame; }
 namespace renderer      { class LightSample; }
+namespace renderer      { class OIIOTextureSystem; }
+namespace renderer      { class OSLShadingSystem; }
 namespace renderer      { class Scene; }
 namespace renderer      { class ShadingPoint; }
+namespace renderer      { class TextureStore; }
+namespace renderer      { class TraceContext; }
 
 namespace renderer
 {
@@ -78,6 +83,13 @@ class BackwardLightSampler
     // Return true if the light set is not empty.
     bool has_lightset() const;
 
+    void create_sampling_probes(
+        const Frame&                        frame,
+        const TraceContext&                 trace_context,
+        TextureStore&                       texture_store,
+        OIIOTextureSystem&                  oiio_texture_system,
+        OSLShadingSystem&                   osl_shading_system);
+
     // Sample the light set.
     void sample_lightset(
         const ShadingRay::Time&             time,
@@ -93,6 +105,7 @@ class BackwardLightSampler
         const ShadingPoint&                 surface_shading_point) const;
 
   private:
+    const Scene&                            m_scene;
     bool                                    m_use_light_tree;
     NonPhysicalLightVector                  m_light_tree_lights;
     std::unique_ptr<LightTree>              m_light_tree;

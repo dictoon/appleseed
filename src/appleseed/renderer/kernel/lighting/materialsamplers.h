@@ -44,7 +44,7 @@ namespace renderer  { class ShadingContext; }
 namespace renderer  { class ShadingPoint; }
 
 //
-// This file contains wrappers over sampleable entities, such as BSDFs and Volumes.
+// This file contains wrappers over samplable entities, such as BSDFs and Volumes.
 // These wrappers provide a uniform interface for sampling and evaluating these entities
 // at a certain point, which can be used during lighting integration.
 //
@@ -86,9 +86,9 @@ class IMaterialSampler
         float&                          pdf) const = 0;
 
     virtual float evaluate(
-        const int                       light_sampling_modes,
         const foundation::Vector3f&     outgoing,
         const foundation::Vector3f&     incoming,
+        const int                       light_sampling_modes,
         DirectShadingComponents&        value) const = 0;
 };
 
@@ -131,9 +131,9 @@ class BSDFSampler
         float&                          pdf) const override;
 
     float evaluate(
-        const int                       light_sampling_modes,
         const foundation::Vector3f&     outgoing,
         const foundation::Vector3f&     incoming,
+        const int                       light_sampling_modes,
         DirectShadingComponents&        value) const override;
 
   private:
@@ -185,9 +185,9 @@ class VolumeSampler
         float&                          pdf) const override;
 
     float evaluate(
-        const int                       light_sampling_modes,
         const foundation::Vector3f&     outgoing,
         const foundation::Vector3f&     incoming,
+        const int                       light_sampling_modes,
         DirectShadingComponents&        value) const override;
 
   private:

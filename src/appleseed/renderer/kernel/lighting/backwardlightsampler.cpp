@@ -32,12 +32,25 @@
 
 // appleseed.renderer headers.
 #include "renderer/global/globallogger.h"
+#include "renderer/kernel/intersection/intersector.h"
+#include "renderer/kernel/lighting/directlightingintegrator.h"
 #include "renderer/kernel/lighting/lightsample.h"
+#include "renderer/kernel/lighting/pathtracer.h"
+#include "renderer/kernel/lighting/pathvertex.h"
+#include "renderer/kernel/lighting/scatteringmode.h"
+#include "renderer/kernel/lighting/tracer.h"
 #include "renderer/kernel/shading/shadingpoint.h"
+#include "renderer/kernel/texturing/texturecache.h"
+#include "renderer/modeling/camera/camera.h"
 #include "renderer/modeling/edf/edf.h"
+#include "renderer/modeling/frame/frame.h"
 #include "renderer/modeling/light/light.h"
 #include "renderer/modeling/material/material.h"
 #include "renderer/modeling/scene/scene.h"
+
+// appleseed.foundation headers.
+#include "foundation/image/canvasproperties.h"
+#include "foundation/image/image.h"
 
 // Standard headers.
 #include <cassert>
@@ -88,6 +101,7 @@ BackwardLightSampler::BackwardLightSampler(
     const Scene&                        scene,
     const ParamArray&                   params)
   : LightSamplerBase(params)
+  , m_scene(scene)
 {
     // Read which sampling algorithm should be used.
     m_use_light_tree = params.get_optional<string>("algorithm", "cdf") == "lighttree";
@@ -196,6 +210,210 @@ BackwardLightSampler::BackwardLightSampler(
         plural(m_light_tree_lights.size() + m_emitting_shapes.size(), "light-tree compatible light").c_str(),
         pretty_int(m_emitting_shapes.size()).c_str(),
         plural(m_emitting_shapes.size(), "shape").c_str());
+}
+
+namespace
+{
+    struct PathVisitor
+    {
+        BackwardLightSampler*       m_light_sampler;
+        const ShadingContext&       m_shading_context;
+        SamplingContext&            m_sampling_context;
+        const bool                  m_enable_caustics;
+        const size_t                m_light_sample_count;
+        bool                        m_is_indirect_lighting;
+
+        PathVisitor(
+            BackwardLightSampler*   light_sampler,
+            const ShadingContext&   shading_context,
+            SamplingContext&        sampling_context,
+            const bool              enable_caustics,
+            const size_t            light_sample_count)
+          : m_light_sampler(light_sampler)
+          , m_shading_context(shading_context)
+          , m_sampling_context(sampling_context)
+          , m_enable_caustics(enable_caustics)
+          , m_light_sample_count(light_sample_count)
+        {
+        }
+
+        void on_first_diffuse_bounce(const PathVertex& vertex)
+        {
+        }
+    
+        bool accept_scattering(
+            const ScatteringMode::Mode  prev_mode,
+            const ScatteringMode::Mode  next_mode) const
+        {
+            assert(next_mode != ScatteringMode::None);
+
+            if (!m_enable_caustics)
+            {
+                // Don't follow paths leading to caustics.
+                if (ScatteringMode::has_diffuse_or_volume(prev_mode) &&
+                    ScatteringMode::has_glossy_or_specular(next_mode))
+                    return false;
+            }
+
+            return true;
+        }
+    
+        void on_miss(const PathVertex& vertex)
+        {
+        }
+
+        void on_hit(const PathVertex& vertex)
+        {
+            assert(vertex.m_bsdf != nullptr);
+            assert(vertex.m_shading_point != nullptr);
+
+            const BSDFSampler bsdf_sampler(
+                *vertex.m_bsdf,
+                vertex.m_bsdf_data,
+                0,                          // BSDF sampling modes -- not used by the methods we use
+                *vertex.m_shading_point);
+
+            const DirectLightingIntegrator dl_integrator(
+                m_shading_context,
+                *m_light_sampler,
+                bsdf_sampler,
+                vertex.get_time(),
+                0,                          // light sampling modes -- not used by the methods we use
+                0,                          // material sample count -- not used by the methods we use
+                m_light_sample_count,       // not used by the methods we use
+                0.0f,                       // not used by the methods we use
+                m_is_indirect_lighting);
+
+            Spectrum irradiance;
+            dl_integrator.compute_irradiance(m_sampling_context, irradiance);
+        }
+
+        void on_scatter(PathVertex& vertex)
+        {
+            assert(vertex.m_scattering_modes != ScatteringMode::None);
+
+            // Any light contribution after a diffuse or glossy bounce is considered indirect.
+            if (ScatteringMode::has_diffuse_or_glossy_or_volume(vertex.m_prev_mode))
+                m_is_indirect_lighting = true;
+
+            // When caustics are disabled, disable glossy and specular components after a diffuse or volume bounce.
+            // Note that accept_scattering() is later going to return false in this case.
+            if (!m_enable_caustics)
+            {
+                if (vertex.m_prev_mode == ScatteringMode::Diffuse ||
+                    vertex.m_prev_mode == ScatteringMode::Volume)
+                    vertex.m_scattering_modes &= ~(ScatteringMode::Glossy | ScatteringMode::Specular);
+            }
+        }
+    };
+    
+    struct VolumeVisitor
+    {
+        bool accept_scattering(
+            const ScatteringMode::Mode  prev_mode)
+        {
+        }
+    
+        void on_scatter(PathVertex& vertex)
+        {
+        }
+
+        void visit_ray(PathVertex& vertex, const ShadingRay& volume_ray)
+        {
+        }
+    };
+}
+
+void BackwardLightSampler::create_sampling_probes(
+    const Frame&                        frame,
+    const TraceContext&                 trace_context,
+    TextureStore&                       texture_store,
+    OIIOTextureSystem&                  oiio_texture_system,
+    OSLShadingSystem&                   osl_shading_system)
+{
+    // No light source in the scene.
+    if (!has_lights())
+        return;
+
+    RENDERER_LOG_INFO("creating direct lighting sampling probes...");
+
+    TextureCache texture_cache(texture_store);
+    const Intersector intersector(trace_context, texture_cache);
+    Arena arena;
+    OSLShaderGroupExec shadergroup_exec(osl_shading_system, arena);
+    Tracer tracer(m_scene, intersector, shadergroup_exec);
+
+    const ShadingContext shading_context(
+        intersector,
+        tracer,
+        texture_cache,
+        oiio_texture_system,
+        shadergroup_exec,
+        arena,
+        0);     // thread index
+
+    const size_t PixelStride = 4;
+
+    const Image& image = frame.image();
+    const CanvasProperties& props = image.properties();
+
+    for (size_t y = 0; y < props.m_canvas_height; y += PixelStride)
+    {
+        for (size_t x = 0; x < props.m_canvas_width; x += PixelStride)
+        {
+            // Create a sampling context.
+            const size_t pixel_index = y * props.m_canvas_width + x;
+            const size_t instance = hash_uint32(static_cast<uint32>(pixel_index));
+            SamplingContext::RNGType rng(instance, instance);
+            SamplingContext sampling_context(
+                rng,
+                SamplingContext::QMCMode,
+                instance);                  // initial instance number
+
+            // Compute the sample position in NDC.
+            const Vector2d sample_position = frame.get_sample_position(x + 0.5, y + 0.5);
+
+            // 1/4 of a pixel, like in RenderMan RIS.
+            const Vector2d sample_position_dx(1.0 / (4.0 * props.m_canvas_width), 0.0);
+            const Vector2d sample_position_dy(0.0, -1.0 / (4.0 * props.m_canvas_height));
+
+            // Construct a primary ray.
+            ShadingRay primary_ray;
+            m_scene.get_active_camera()->spawn_ray(
+                sampling_context,
+                Dual2d(sample_position, sample_position_dx, sample_position_dy),
+                primary_ray);
+
+            // todo: get from the path tracer config?
+            const bool EnableCaustics = false;
+            const size_t RRMinPathLength = 1000;
+            const size_t MaxBounces = 3;
+            const size_t MaxDiffuseBounces = 3;
+            const size_t MaxGlossyBounces = 3;
+            const size_t MaxSpecularBounces = 3;
+            const size_t MaxVolumeBounces = 3;
+            const bool ClampRoughness = false;
+            const size_t LightSampleCount = 16;
+
+            PathVisitor path_visitor(
+                this,
+                shading_context,
+                sampling_context,
+                EnableCaustics,
+                LightSampleCount);
+            VolumeVisitor volume_visitor;
+            PathTracer<PathVisitor, VolumeVisitor, false> path_tracer(
+                path_visitor,
+                volume_visitor,
+                RRMinPathLength,
+                MaxBounces,
+                MaxDiffuseBounces,
+                MaxGlossyBounces,
+                MaxSpecularBounces,
+                MaxVolumeBounces,
+                ClampRoughness);
+        }
+    }
 }
 
 void BackwardLightSampler::sample_lightset(
