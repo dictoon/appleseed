@@ -115,19 +115,6 @@ class DirectLightingIntegrator
         SamplingContext&                sampling_context,
         Spectrum&                       irradiance) const;
 
-  private:
-    friend class VolumeLightingIntegrator;
-
-    const ShadingContext&               m_shading_context;
-    const BackwardLightSampler&         m_light_sampler;
-    const ShadingRay::Time&             m_time;
-    const IMaterialSampler&             m_material_sampler;
-    const int                           m_light_sampling_modes;
-    const float                         m_low_light_threshold;
-    const size_t                        m_material_sample_count;
-    const size_t                        m_light_sample_count;
-    const bool                          m_indirect;
-
     void add_emitting_shape_sample_contribution(
         SamplingContext&                sampling_context,
         const LightSample&              sample,
@@ -151,6 +138,19 @@ class DirectLightingIntegrator
         SamplingContext&                sampling_context,
         const LightSample&              sample,
         Spectrum&                       irradiance) const;
+
+  private:
+    friend class VolumeLightingIntegrator;
+
+    const ShadingContext&               m_shading_context;
+    const BackwardLightSampler&         m_light_sampler;
+    const ShadingRay::Time&             m_time;
+    const IMaterialSampler&             m_material_sampler;
+    const int                           m_light_sampling_modes;
+    const float                         m_low_light_threshold;
+    const size_t                        m_material_sample_count;
+    const size_t                        m_light_sample_count;
+    const bool                          m_indirect;
 };
 
 }   // namespace renderer

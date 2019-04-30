@@ -37,6 +37,7 @@
 
 // appleseed.foundation headers.
 #include "foundation/core/concepts/noncopyable.h"
+#include "foundation/math/knn/knn_tree.h"
 
 // Standard headers.
 #include <cstddef>
@@ -105,10 +106,13 @@ class BackwardLightSampler
         const ShadingPoint&                 surface_shading_point) const;
 
   private:
+    class PathVisitor;
+
     const Scene&                            m_scene;
     bool                                    m_use_light_tree;
     NonPhysicalLightVector                  m_light_tree_lights;
     std::unique_ptr<LightTree>              m_light_tree;
+    foundation::knn::Tree3d                 m_light_probe_tree;
 
     void sample_light_tree(
         const ShadingRay::Time&             time,

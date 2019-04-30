@@ -75,6 +75,14 @@ class LightSamplerBase
         LightSample&                        light_sample,
         const float                         light_prob = 1.0f) const;
 
+    // Sample a given emitting shape.
+    void sample_emitting_shape(
+        const ShadingRay::Time&             time,
+        const foundation::Vector2f&         s,
+        const size_t                        shape_index,
+        const float                         shape_prob,
+        LightSample&                        sample) const;
+
   protected:
     struct Parameters
     {
@@ -139,14 +147,6 @@ class LightSamplerBase
         const ObjectInstance*               object_instance,
         const float                         object_area,
         const MaterialArray&                materials);
-
-    // Sample a given emitting shape.
-    void sample_emitting_shape(
-        const ShadingRay::Time&             time,
-        const foundation::Vector2f&         s,
-        const size_t                        shape_index,
-        const float                         shape_prob,
-        LightSample&                        sample) const;
 
     // Sample the set of emitting shapes.
     void sample_emitting_shapes(
