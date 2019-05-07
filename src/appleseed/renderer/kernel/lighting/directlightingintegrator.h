@@ -132,6 +132,7 @@ class DirectLightingIntegrator
 
     void add_emitting_shape_sample_contribution_to_irradiance(
         const LightSample&              sample,
+        const bool                      with_occlusion,
         Spectrum&                       irradiance) const;
 
     void add_non_physical_light_sample_contribution_to_irradiance(

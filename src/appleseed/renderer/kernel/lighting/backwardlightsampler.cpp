@@ -51,9 +51,15 @@
 // appleseed.foundation headers.
 #include "foundation/image/canvasproperties.h"
 #include "foundation/image/image.h"
-#include "foundation/math/cdf.h"
 #include "foundation/math/knn.h"
+#include "foundation/math/mis.h"
+#include "foundation/math/rng/distribution.h"
+#include "foundation/platform/compiler.h"
 #include "foundation/platform/defaulttimers.h"
+#include "foundation/utility/makevector.h"
+#include "foundation/utility/memory.h"
+#include "foundation/utility/otherwise.h"
+#include "foundation/utility/poison.h"
 
 // Standard headers.
 #include <cassert>
@@ -77,7 +83,7 @@ Dictionary BackwardLightSampler::get_params_metadata()
         "algorithm",
         Dictionary()
             .insert("type", "enum")
-            .insert("values", "cdf|lighttree")
+            .insert("values", "cdf|lighttree|lightprobes")
             .insert("default", "cdf")
             .insert("label", "Light Sampler")
             .insert("help", "Light sampling algoritm")
@@ -93,7 +99,12 @@ Dictionary BackwardLightSampler::get_params_metadata()
                         "lighttree",
                         Dictionary()
                             .insert("label", "Light Tree")
-                            .insert("help", "Lights organized in a BVH"))));
+                            .insert("help", "Lights organized in a BVH"))
+                    .insert(
+                        "lightprobes",
+                        Dictionary()
+                            .insert("label", "Light Probes")
+                            .insert("help", "Precomputed Light Probes"))));
 
     metadata.merge(LightSamplerBase::get_params_metadata());
 
@@ -106,8 +117,13 @@ BackwardLightSampler::BackwardLightSampler(
   : LightSamplerBase(params)
   , m_scene(scene)
 {
-    // Read which sampling algorithm should be used.
-    m_use_light_tree = params.get_optional<string>("algorithm", "cdf") == "lighttree";
+    // Retrieve the sampling algorithm.
+    const string algorithm_str =
+        params.get_optional<string>("algorithm", "cdf", make_vector("cdf", "lighttree", "lightprobes"));
+    m_algorithm =
+        algorithm_str == "cdf" ? Algorithm::CDF :
+        algorithm_str == "lighttree" ? Algorithm::LightTree :
+        Algorithm::LightProbes;
 
     RENDERER_LOG_INFO("collecting light emitters...");
 
@@ -118,7 +134,7 @@ BackwardLightSampler::BackwardLightSampler(
         TransformSequence(),
         [&](const NonPhysicalLightInfo& light_info)
         {
-            if (m_use_light_tree
+            if (m_algorithm == Algorithm::LightTree
                 && ((light_info.m_light->get_flags() & Light::LightTreeCompatible) != 0))
             {
                 // Insert into light tree compatible lights.
@@ -148,7 +164,7 @@ BackwardLightSampler::BackwardLightSampler(
             const float     area,
             const size_t    emitting_shape_index)
         {
-            if (m_use_light_tree)
+            if (m_algorithm == Algorithm::LightTree)
             {
                 // Only accept this shape if its material has an EDF.
                 // This excludes shapes with light-emitting OSL materials
@@ -181,7 +197,7 @@ BackwardLightSampler::BackwardLightSampler(
     if (m_non_physical_lights_cdf.valid())
         m_non_physical_lights_cdf.prepare();
 
-    if (m_use_light_tree)
+    if (m_algorithm == Algorithm::LightTree)
     {
         // Initialize the LightTree only after the lights are collected.
         m_light_tree.reset(new LightTree(m_light_tree_lights, m_emitting_shapes));
@@ -217,13 +233,19 @@ BackwardLightSampler::BackwardLightSampler(
 
 namespace
 {
-    using CDFType = CDF<size_t, float>;
+    // Direct lighting sampling probes settings.
+    constexpr size_t MaxShapeCount = 64;
+    constexpr size_t PixelStride = 16;
+    constexpr size_t LightSampleCount = 1;
+    constexpr size_t NeighborProbeCount = 1;
+    constexpr float ResidualWeightFraction = 0.05f;
 }
 
 class BackwardLightSampler::PathVisitor
 {
   public:
     using CDFType = CDF<size_t, float>;
+    using ContribType = std::pair<size_t, float>;
 
     BackwardLightSampler*           m_light_sampler;
     const ShadingContext&           m_shading_context;
@@ -233,6 +255,8 @@ class BackwardLightSampler::PathVisitor
     vector<Vector3d>&               m_light_probe_positions;
     vector<CDFType>&                m_emitting_shape_cdfs;
     bool                            m_is_indirect_lighting;
+    vector<ContribType>             m_unoccluded_contribs;
+    vector<float>                   m_weights;
 
     PathVisitor(
         BackwardLightSampler*       light_sampler,
@@ -280,8 +304,10 @@ class BackwardLightSampler::PathVisitor
 
     void on_hit(const PathVertex& vertex)
     {
-        assert(vertex.m_bsdf != nullptr);
         assert(vertex.m_shading_point != nullptr);
+
+        if (vertex.m_bsdf == nullptr)
+            return;
 
         CDFType cdf;
 
@@ -302,31 +328,150 @@ class BackwardLightSampler::PathVisitor
             0.0f,                       // not used by the methods we use
             m_is_indirect_lighting);
 
-        for (size_t shape_index = 0, shape_count = m_light_sampler->m_emitting_shapes.size();
-             shape_index < shape_count; ++shape_index)
+        const size_t shape_count = m_light_sampler->m_emitting_shapes.size();
+        cdf.reserve(min(shape_count, MaxShapeCount));
+
+        if (shape_count <= MaxShapeCount)
         {
-            Spectrum irradiance;
-            irradiance.set(0.0f);
-
-            m_sampling_context.split_in_place(2, m_light_sample_count);
-
-            for (size_t i = 0, e = m_light_sample_count; i < e; ++i)
+            for (size_t shape_index = 0; shape_index < shape_count; ++shape_index)
             {
-                LightSample light_sample;
-                m_light_sampler->sample_emitting_shape(
-                    vertex.get_time(),
-                    m_sampling_context.next2<Vector2f>(),
-                    shape_index,
-                    1.0f,               // shape probability
-                    light_sample);
+                m_shading_context.get_arena().clear();
+                m_sampling_context.split_in_place(2, m_light_sample_count);
 
-                dl_integrator.add_emitting_shape_sample_contribution_to_irradiance(
-                    light_sample,
-                    irradiance);
+                Spectrum irradiance;
+                irradiance.set(0.0f);
+
+                for (size_t i = 0, e = m_light_sample_count; i < e; ++i)
+                {
+                    LightSample light_sample;
+                    light_sample.m_light = nullptr;
+                    m_light_sampler->sample_emitting_shape(
+                        vertex.get_time(),
+                        m_sampling_context.next2<Vector2f>(),
+                        shape_index,
+                        1.0f,               // shape probability
+                        light_sample);
+
+                    dl_integrator.add_emitting_shape_sample_contribution_to_irradiance(
+                        light_sample,
+                        true,               // occluded
+                        irradiance);
+                }
+
+                cdf.insert(shape_index, sum_value(irradiance));
+            }
+        }
+        else
+        {
+            // Compute unoccluded contribution for all shapes.
+            m_unoccluded_contribs.reserve(shape_count);
+            for (size_t shape_index = 0; shape_index < shape_count; ++shape_index)
+            {
+                m_shading_context.get_arena().clear();
+                m_sampling_context.split_in_place(2, m_light_sample_count);
+
+                Spectrum irradiance;
+                irradiance.set(0.0f);
+
+                for (size_t i = 0, e = m_light_sample_count; i < e; ++i)
+                {
+                    LightSample light_sample;
+                    light_sample.m_light = nullptr;
+                    m_light_sampler->sample_emitting_shape(
+                        vertex.get_time(),
+                        m_sampling_context.next2<Vector2f>(),
+                        shape_index,
+                        1.0f,               // shape probability
+                        light_sample);
+
+                    dl_integrator.add_emitting_shape_sample_contribution_to_irradiance(
+                        light_sample,
+                        false,              // unoccluded
+                        irradiance);
+                }
+
+                m_unoccluded_contribs.emplace_back(shape_index, sum_value(irradiance));
             }
 
-            // todo: we could store spectra...
-            cdf.insert(shape_index, sum_value(irradiance));
+            // Sort shapes by decreasing contribution.
+            sort(
+                m_unoccluded_contribs.begin(),
+                m_unoccluded_contribs.end(),
+                [](const ContribType& lhs, const ContribType& rhs)
+                {
+                    return rhs.second < lhs.second;
+                });
+
+            float top_weight = 0.0f;
+            for (size_t i = 0; i < MaxShapeCount; ++i)
+                top_weight += m_unoccluded_contribs[i].second;
+
+            const size_t discarded_shape_count = shape_count - MaxShapeCount;
+            const float residual_weight = top_weight * ResidualWeightFraction;
+            const float discarded_shape_weight = residual_weight / discarded_shape_count;
+            for (size_t i = MaxShapeCount; i < shape_count; ++i)
+                m_unoccluded_contribs[i].second = discarded_shape_weight;
+
+            for (const ContribType& contrib : m_unoccluded_contribs)
+                cdf.insert(contrib.first, contrib.second);
+
+            /*ensure_minimum_size(m_weights, shape_count);
+
+            for (size_t shape_index = 0; shape_index < shape_count; ++shape_index)
+                m_weights[shape_index] = 0.0f;
+
+            for (size_t shape_sample_index = 0; shape_sample_index < MaxShapeCount; ++shape_sample_index)
+            {
+                const size_t shape_index = static_cast<size_t>(rand_int1(m_rng, 0, static_cast<int32>(shape_count - 1)));
+
+                m_shading_context.get_arena().clear();
+
+                m_sampling_context.split_in_place(2, m_light_sample_count);
+
+                Spectrum irradiance;
+                irradiance.set(0.0f);
+
+                for (size_t i = 0, e = m_light_sample_count; i < e; ++i)
+                {
+                    LightSample light_sample;
+                    light_sample.m_light = nullptr;
+                    m_light_sampler->sample_emitting_shape(
+                        vertex.get_time(),
+                        m_sampling_context.next2<Vector2f>(),
+                        shape_index,
+                        1.0f,               // shape probability
+                        light_sample);
+
+                    dl_integrator.add_emitting_shape_sample_contribution_to_irradiance(
+                        light_sample,
+                        irradiance);
+                }
+
+                m_weights[shape_index] = sum_value(irradiance);
+            }
+
+            float total_weight = 0.0f;
+            size_t discarded_shape_count = 0;
+
+            for (size_t shape_index = 0; shape_index < shape_count; ++shape_index)
+            {
+                const float shape_weight = m_weights[shape_index];
+                total_weight += shape_weight;
+                if (shape_weight == 0.0f)
+                    ++discarded_shape_count;
+            }
+
+            assert(shape_count > MaxShapeCount);
+            assert(discarded_shape_count >= shape_count - MaxShapeCount);
+
+            const float residual_weight = total_weight > 0.0f ? ResidualWeightFraction * total_weight : 1.0f;
+            const float discarded_shape_weight = residual_weight / discarded_shape_count;
+
+            for (size_t shape_index = 0; shape_index < shape_count; ++shape_index)
+            {
+                const float shape_weight = m_weights[shape_index];
+                cdf.insert(shape_index, shape_weight > 0.0f ? shape_weight : discarded_shape_weight);
+            }*/
         }
 
         assert(!cdf.empty());
@@ -334,9 +479,9 @@ class BackwardLightSampler::PathVisitor
         if (cdf.valid())
         {
             cdf.prepare();
+            m_emitting_shape_cdfs.push_back(cdf);
 
             m_light_probe_positions.push_back(vertex.m_shading_point->get_point());
-            m_emitting_shape_cdfs.push_back(cdf);
         }
     }
 
@@ -384,16 +529,19 @@ void BackwardLightSampler::create_sampling_probes(
     const TraceContext&                 trace_context,
     TextureStore&                       texture_store,
     OIIOTextureSystem&                  oiio_texture_system,
-    OSLShadingSystem&                   osl_shading_system)
+    OSLShadingSystem&                   osl_shading_system,
+    IAbortSwitch&                       abort_switch)
 {
+    assert(m_emitting_shape_cdfs.empty());
+
+    if (m_algorithm != Algorithm::LightProbes)
+        return;
+
     // No light source in the scene.
     if (!has_lights())  
         return;
 
-    RENDERER_LOG_INFO("creating direct lighting sampling probes...");
-
     vector<Vector3d> light_probe_positions;
-    vector<CDFType> emitting_shape_cdfs;
 
     TextureCache texture_cache(texture_store);
     const Intersector intersector(trace_context, texture_cache);
@@ -410,15 +558,30 @@ void BackwardLightSampler::create_sampling_probes(
         arena,
         0);     // thread index
 
-    const size_t PixelStride = 8;
-
     const Image& image = frame.image();
     const CanvasProperties& props = image.properties();
+
+    const size_t location_count =
+        truncate<size_t>(ceil(static_cast<double>(props.m_canvas_width) / PixelStride)) *
+        truncate<size_t>(ceil(static_cast<double>(props.m_canvas_height) / PixelStride));
+
+    RENDERER_LOG_INFO(
+        "creating direct lighting sampling probes at %s location%s for %s light-emitting shape%s...",
+        pretty_uint(location_count).c_str(),
+        location_count > 1 ? "s" : "",
+        pretty_uint(m_emitting_shapes.size()).c_str(),
+        m_emitting_shapes.size() > 1 ? "s" : "");
+
+    size_t location_done = 0;
+    size_t last_reported_completed_percent = 0;
 
     for (size_t y = 0; y < props.m_canvas_height; y += PixelStride)
     {
         for (size_t x = 0; x < props.m_canvas_width; x += PixelStride)
         {
+            if (abort_switch.is_aborted())
+                return;
+
             // Create a sampling context.
             const size_t pixel_index = y * props.m_canvas_width + x;
             const size_t instance = hash_uint32(static_cast<uint32>(pixel_index));
@@ -455,7 +618,6 @@ void BackwardLightSampler::create_sampling_probes(
             const size_t MaxSpecularBounces = 3;
             const size_t MaxVolumeBounces = 3;
             const bool ClampRoughness = false;
-            const size_t LightSampleCount = 8;
 
             PathVisitor path_visitor(
                 this,
@@ -464,7 +626,7 @@ void BackwardLightSampler::create_sampling_probes(
                 EnableCaustics,
                 LightSampleCount,
                 light_probe_positions,
-                emitting_shape_cdfs);
+                m_emitting_shape_cdfs);
 
             VolumeVisitor volume_visitor;
 
@@ -483,14 +645,26 @@ void BackwardLightSampler::create_sampling_probes(
                 sampling_context,
                 shading_context,
                 shading_point);
+
+            ++location_done;
+
+            const size_t completed_percent = location_done * 100 / location_count;
+            if (completed_percent - last_reported_completed_percent >= 5)
+            {
+                last_reported_completed_percent = completed_percent;
+                RENDERER_LOG_INFO(
+                    "creating direct lighting sampling probes, %s completed...",
+                    pretty_percent(location_done, location_count).c_str());
+            }
         }
     }
 
-    assert(light_probe_positions.size() == emitting_shape_cdfs.size());
+    assert(location_done == location_count);
+    assert(light_probe_positions.size() == m_emitting_shape_cdfs.size());
 
     RENDERER_LOG_INFO(
-        "created " FMT_SIZE_T " direct lighting sampling probe%s.",
-        light_probe_positions.size(),
+        "created %s direct lighting sampling probe%s.",
+        pretty_uint(light_probe_positions.size()).c_str(),
         light_probe_positions.size() > 1 ? "s" : "");
 
     if (!light_probe_positions.empty())
@@ -509,22 +683,21 @@ void BackwardLightSampler::sample_lightset(
     const ShadingPoint&                 shading_point,
     LightSample&                        light_sample) const
 {
-    if (m_use_light_tree)
+    switch (m_algorithm)
     {
-        // Light tree sampling.
-        sample_light_tree(
-            time,
-            s,
-            shading_point,
-            light_sample);
-    }
-    else
-    {
-        // CDF-based sampling.
-        sample_emitting_shapes(
-            time,
-            s,
-            light_sample);
+      case Algorithm::CDF:
+        sample_emitting_shapes(time, s, light_sample);
+        break;
+
+      case Algorithm::LightTree:
+        sample_light_tree(time, s, shading_point, light_sample);
+        break;
+
+      case Algorithm::LightProbes:
+        sample_light_probes(time, s, shading_point, light_sample);
+        break;
+
+      assert_otherwise;
     }
 }
 
@@ -546,14 +719,30 @@ float BackwardLightSampler::evaluate_pdf(
 
     const EmittingShape* shape = *shape_ptr;
 
-    const float shape_probability =
-        m_use_light_tree
-            ? m_light_tree->evaluate_node_pdf(
-                surface_shading_point,
-                shape->m_light_tree_node_index)
-            : shape->m_shape_prob;
+    float shape_prob;
+    poison(shape_prob);
 
-    const float pdf = shape_probability * shape->m_rcp_area;
+    switch (m_algorithm)
+    {
+      case Algorithm::CDF:
+        shape_prob = shape->m_shape_prob;
+        break;
+
+      case Algorithm::LightTree:
+        shape_prob =
+            m_light_tree->evaluate_node_pdf(
+                surface_shading_point,
+                shape->m_light_tree_node_index);
+        break;
+
+      case Algorithm::LightProbes:
+        shape_prob = evaluate_light_probes_pdf(shape, surface_shading_point);
+        break;
+
+      assert_otherwise;
+    }
+
+    const float pdf = shape_prob * shape->m_rcp_area;
     assert(pdf >= 0.0f);
 
     return pdf;
@@ -604,6 +793,86 @@ void BackwardLightSampler::sample_light_tree(
 
     assert(light_sample.m_light || light_sample.m_shape);
     assert(light_sample.m_probability > 0.0f);
+}
+
+void BackwardLightSampler::sample_light_probes(
+    const ShadingRay::Time&             time,
+    const Vector3f&                     s,
+    const ShadingPoint&                 shading_point,
+    LightSample&                        light_sample) const
+{
+    if (s[0] < 0.5f)
+    {
+        sample_emitting_shapes(
+            time,
+            Vector3f(2.0f * s[0], s[1], s[2]),
+            light_sample);
+    }
+    else
+    {
+        // todo: this allocates memory!
+        knn::Answer<double> answer(NeighborProbeCount);
+
+        knn::Query3d query(m_light_probe_tree, answer);
+        query.run(shading_point.get_point());
+        assert(answer.size() == 1);
+
+        // answer.sort();
+
+        const size_t probe_index = m_light_probe_tree.remap(answer.get(0).m_index);
+        assert(probe_index < m_emitting_shape_cdfs.size());
+
+        const CDFType& emitting_shapes_cdf = m_emitting_shape_cdfs[probe_index];
+        assert(emitting_shapes_cdf.valid());
+
+        const EmitterCDF::ItemWeightPair result = emitting_shapes_cdf.sample(2.0f * (s[0] - 0.5f));
+        const size_t shape_index = result.first;
+        const float shape_prob = result.second;
+
+        light_sample.m_light = nullptr;
+        sample_emitting_shape(
+            time,
+            Vector2f(s[1], s[2]),
+            shape_index,
+            shape_prob,
+            light_sample);
+
+        assert(light_sample.m_shape);
+        assert(light_sample.m_probability > 0.0f);
+    }
+}
+
+float BackwardLightSampler::evaluate_light_probes_pdf(
+    const EmittingShape*                shape,
+    const ShadingPoint&                 surface_shading_point) const
+{
+    // todo: this allocates memory!
+    knn::Answer<double> answer(NeighborProbeCount);
+
+    knn::Query3d query(m_light_probe_tree, answer);
+    query.run(surface_shading_point.get_point());
+    assert(answer.size() == 1);
+
+    // answer.sort();
+
+    const size_t probe_index = m_light_probe_tree.remap(answer.get(0).m_index);
+    assert(probe_index < m_emitting_shape_cdfs.size());
+
+    const CDFType& emitting_shapes_cdf = m_emitting_shape_cdfs[probe_index];
+    assert(emitting_shapes_cdf.valid());
+
+    for (size_t i = 0, e = emitting_shapes_cdf.size(); i < e; ++i)
+    {
+        const CDFType::ItemWeightPair& item = emitting_shapes_cdf[i];
+        if (&m_emitting_shapes[item.first] == shape)
+        {
+            // MIS, single sample model, balance heuristic.
+            return 0.5f * item.second + 0.5f * shape->m_shape_prob;
+        }
+    }
+
+    APPLESEED_UNREACHABLE;
+    return 0.0f;
 }
 
 }   // namespace renderer

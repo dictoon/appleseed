@@ -550,7 +550,8 @@ struct MasterRenderer::Impl
                     components.get_trace_context(),
                     components.get_texture_store(),
                     components.get_oiio_texture_system(),
-                    components.get_osl_shading_system());
+                    components.get_osl_shading_system(),
+                    abort_switch);
             }
 
             IFrameRenderer& frame_renderer = components.get_frame_renderer();

@@ -357,7 +357,7 @@ void DirectLightingIntegrator::compute_irradiance(
         if (sample.m_shape != nullptr)
         {
             assert(sample.m_light == nullptr);
-            add_emitting_shape_sample_contribution_to_irradiance(sample, irradiance);
+            add_emitting_shape_sample_contribution_to_irradiance(sample, true, irradiance);
         }
         else
         {
@@ -583,6 +583,7 @@ void DirectLightingIntegrator::add_non_physical_light_sample_contribution(
 
 void DirectLightingIntegrator::add_emitting_shape_sample_contribution_to_irradiance(
     const LightSample&              sample,
+    const bool                      with_occlusion,
     Spectrum&                       irradiance) const
 {
     const Material* material = sample.m_shape->m_material;
@@ -615,16 +616,20 @@ void DirectLightingIntegrator::add_emitting_shape_sample_contribution_to_irradia
     cos_on *= rcp_sample_distance;
     incoming *= rcp_sample_distance;
 
-    // Compute the transmission factor between the light sample and the shading point.
     Spectrum transmission;
-    m_material_sampler.trace_between(
-        m_shading_context,
-        sample.m_point,
-        transmission);
+    if (with_occlusion)
+    {
+        // Compute the transmission factor between the light sample and the shading point.
+        m_material_sampler.trace_between(
+            m_shading_context,
+            sample.m_point,
+            transmission);
 
-    // Discard occluded samples.
-    if (is_zero(transmission))
-        return;
+        // Discard occluded samples.
+        if (is_zero(transmission))
+            return;
+    }
+    else transmission.set(1.0f);
 
     // Build a shading point on the light source.
     ShadingPoint light_shading_point;
