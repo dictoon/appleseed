@@ -566,7 +566,7 @@ namespace
 
                 // This may happen for points of the environment map with infinite components,
                 // which are then excluded from importance sampling and thus have zero weight.
-                if (env_prob == 0.0)
+                if (env_prob == 0.0f)
                     return;
 
                 // Multiple importance sampling.
