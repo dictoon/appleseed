@@ -135,7 +135,7 @@ class RenderWidget
   public slots:
     void slot_display_transform_changed(const QString& transform);
 
-  private:
+  protected:
     mutable QMutex                      m_mutex;
     QImage                              m_image;
     QPainter                            m_painter;

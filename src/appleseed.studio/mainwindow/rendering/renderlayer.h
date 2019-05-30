@@ -29,33 +29,62 @@
 
 #pragma once
 
-// appleseed.renderer headers.
-#include "renderer/api/rendering.h"
+// appleseed.studio headers.
+#include "mainwindow/rendering/renderwidget.h"
 
-// appleseed.foundation headers.
-#include "foundation/platform/compiler.h"
+// OpenColorIO headers.
+#include <OpenColorIO/OpenColorIO.h>
+namespace OCIO = OCIO_NAMESPACE;
+
+// Qt headers.
+#include <QOpenGLWidget>
+
+// Standard headers.
+#include <cstddef>
 
 // Forward declarations.
-namespace appleseed { namespace studio { class ViewportCanvas; } }
+class QOpenGLFunctions_4_1_Core;
+class QOpenGLTexture;
+class QWidget;
 
 namespace appleseed {
 namespace studio {
 
-class QtTileCallbackFactory
-  : public renderer::ITileCallbackFactory
+//
+// A render widget based on QImage.
+//
+
+class RenderLayer
+  : public RenderWidget
 {
+    Q_OBJECT
+
   public:
     // Constructor.
-    explicit QtTileCallbackFactory(ViewportCanvas* viewport_canvas);
+    RenderLayer(
+        const std::size_t       width,
+        const std::size_t       height,
+        OCIO::ConstConfigRcPtr  ocio_config,
+        QWidget*                parent = nullptr);
 
-    // Delete this instance.
-    void release() override;
+    // Thread-safe.
+    void set_display_transform(
+        const QString&          transform);
 
-    // Return a new instance of the class.
-    renderer::ITileCallback* create() override;
+    void draw(
+        const GLuint            empty_vao,
+        const bool              paths_display_active);
+
+    void init_gl(QSurfaceFormat format);
+    void set_gl_functions(QOpenGLFunctions_4_1_Core* functions);
 
   private:
-    ViewportCanvas* m_viewport_canvas;
+    QOpenGLFunctions_4_1_Core*  m_gl;
+    QOpenGLTexture*             m_gl_tex;
+    GLuint                      m_shader_program;
+    GLint                       m_mult_loc;
+    bool                        m_gl_initialized;
+    bool                        m_refresh_gl_texture;
 };
 
 }   // namespace studio
