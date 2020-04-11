@@ -67,8 +67,12 @@ namespace
         {
             connect(
                 this, &QtTileCallback::signal_update,
-                viewport_canvas, static_cast<void (QWidget::*)(void)>(&QWidget::update),  // todo: was QWidget::repaint
+                viewport_canvas, static_cast<void (QWidget::*)(void)>(&QWidget::update),
                 Qt::QueuedConnection);
+            /*connect(
+                this, SIGNAL(signal_update()),
+                viewport_canvas, SLOT(repaint()),
+                Qt::QueuedConnection);*/
         }
 
         void release() override

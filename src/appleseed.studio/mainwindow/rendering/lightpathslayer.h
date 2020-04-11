@@ -90,7 +90,7 @@ class LightPathsLayer
     void set_gl_functions(
         QOpenGLFunctions_4_1_Core*          functions);
 
-    void init_gl(QSurfaceFormat format);
+    void init_gl();
 
     void draw() const;
 

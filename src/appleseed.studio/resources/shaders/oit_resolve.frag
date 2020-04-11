@@ -1,10 +1,11 @@
+
 //
 // This source file is part of appleseed.
 // Visit https://appleseedhq.net/ for additional information and resources.
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -40,18 +41,14 @@ float max4(vec4 v)
 void main()
 {
     const ivec2 coord = ivec2(gl_FragCoord.xy);
-
     const float revealage = texelFetch(u_revealage_tex, coord, 0).r;
 
     vec4 accum = texelFetch(u_accum_tex, coord, 0);
 
     // Suppress overflow.
     if (isinf(max4(abs(accum))))
-    {
         accum.rgb = vec3(accum.a);
-    }
 
     const vec3 averageColor = accum.rgb / max(accum.a, 0.00001);
-
     Target0 = vec4(averageColor, 1.0 - revealage);
 }

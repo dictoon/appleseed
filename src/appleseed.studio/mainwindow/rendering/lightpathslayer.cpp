@@ -5,7 +5,7 @@
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,6 @@
 #include <QKeyEvent>
 #include <QOpenGLFunctions_4_1_Core>
 #include <QString>
-#include <QSurfaceFormat>
 
 // Standard headers.
 #include <algorithm>
@@ -263,27 +262,15 @@ void LightPathsLayer::load_light_paths_data()
         
         // Upload the data to the buffers.
         m_gl->glBindBuffer(GL_ARRAY_BUFFER, m_positions_vbo);
-        m_gl->glBufferData(
-            GL_ARRAY_BUFFER,
-            positions_buffer.size() * sizeof(float),
-            reinterpret_cast<const GLvoid*>(&positions_buffer[0]),
-            GL_STATIC_DRAW);
+        m_gl->glBufferData(GL_ARRAY_BUFFER, positions_buffer.size() * sizeof(float), positions_buffer.data(), GL_STATIC_DRAW);
         m_gl->glBindBuffer(GL_ARRAY_BUFFER, m_others_vbo);
-        m_gl->glBufferData(
-            GL_ARRAY_BUFFER,
-            others_buffer.size() * sizeof(OtherAttributes),
-            reinterpret_cast<const GLvoid*>(&others_buffer[0]),
-            GL_STATIC_DRAW);
+        m_gl->glBufferData(GL_ARRAY_BUFFER, others_buffer.size() * sizeof(OtherAttributes), others_buffer.data(), GL_STATIC_DRAW);
         m_gl->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indices_ebo);
-        m_gl->glBufferData(
-            GL_ELEMENT_ARRAY_BUFFER,
-            indices.size() * sizeof(unsigned int),
-            reinterpret_cast<const GLvoid*>(&indices[0]),
-            GL_STATIC_DRAW);
+        m_gl->glBufferData( GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
     }
 }
 
-void LightPathsLayer::init_gl(QSurfaceFormat format)
+void LightPathsLayer::init_gl()
 {
     // If there was already previous data, clean up.
     cleanup_gl_data();
@@ -311,7 +298,7 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
 
     const RasterizationCamera& rc = m_camera.get_rasterization_camera();
 
-    const float fy = tan(rc.m_hfov / rc.m_aspect_ratio * 0.5) * z_near;
+    const float fy = std::tan(rc.m_hfov / rc.m_aspect_ratio * 0.5) * z_near;
     const float fx = fy * rc.m_aspect_ratio;
 
     const float shift_x = rc.m_shift_x * 2.0 * fx;
@@ -330,7 +317,7 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
     m_gl->glGenVertexArrays(1, &temp_light_paths_vao);
     m_light_paths_vao = temp_light_paths_vao;
 
-    GLuint temp_vbos[3] = {0, 0, 0};
+    GLuint temp_vbos[3] = { 0, 0, 0 };
     m_gl->glGenBuffers(3, &temp_vbos[0]);
     m_positions_vbo = temp_vbos[0];
     m_others_vbo = temp_vbos[1];
@@ -345,7 +332,7 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
     // See http://codeflow.org/entries/2012/aug/05/webgl-rendering-of-solid-trails/ for reference.
     m_gl->glBindBuffer(GL_ARRAY_BUFFER, m_positions_vbo);
 
-    // vec3 v_previous;
+    // vec3 v_previous
     GLint layout_attribute_location = 0;
     m_gl->glVertexAttribPointer(
         layout_attribute_location,
@@ -356,7 +343,7 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
         reinterpret_cast<const GLvoid*>(0));
     m_gl->glEnableVertexAttribArray(layout_attribute_location);
 
-    // vec3 v_position;
+    // vec3 v_position
     layout_attribute_location = 1;
     m_gl->glVertexAttribPointer(
         layout_attribute_location,
@@ -367,7 +354,7 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
         reinterpret_cast<const GLvoid*>(Vec3ByteStride * 2));
     m_gl->glEnableVertexAttribArray(layout_attribute_location);
 
-    // vec3 v_next;
+    // vec3 v_next
     layout_attribute_location = 2;
     m_gl->glVertexAttribPointer(
         layout_attribute_location,
@@ -381,10 +368,10 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
     // The rest of the attributes are stored in a separate data buffer, interleaved.
     m_gl->glBindBuffer(GL_ARRAY_BUFFER, m_others_vbo);
 
+    // int v_bitmask
     // This attribute stores 2 bools:
     // bit 0: normal direction which maps to -1.0 (false) or 1.0 (true)
     // bit 1: whether this is the end vertex of a new path
-    // int v_bitmask;
     layout_attribute_location = 3;
     unsigned long long offset = 0;
     m_gl->glVertexAttribIPointer(
@@ -395,7 +382,7 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
         reinterpret_cast<const GLvoid*>(offset));
     m_gl->glEnableVertexAttribArray(layout_attribute_location);
 
-    // vec3 v_color;
+    // vec3 v_color
     layout_attribute_location = 4;
     offset += sizeof(GLint);
     m_gl->glVertexAttribPointer(
@@ -407,7 +394,7 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
         reinterpret_cast<const GLvoid*>(offset));
     m_gl->glEnableVertexAttribArray(layout_attribute_location);
 
-    // vec3 v_surface_normal;
+    // vec3 v_surface_normal
     layout_attribute_location = 5;
     offset += 3 * sizeof(GLfloat);
     m_gl->glVertexAttribPointer(
@@ -430,19 +417,20 @@ void LightPathsLayer::init_gl(QSurfaceFormat format)
 void LightPathsLayer::cleanup_gl_data()
 {
     if (m_shader_program != 0)
+    {
         m_gl->glDeleteProgram(m_shader_program);
+        m_shader_program = 0;
+    }
 }
 
 void LightPathsLayer::draw_render_camera() const
 {
-    const auto gl_view_matrix = const_cast<const GLfloat*>(&m_gl_render_view_matrix[0]);
-    render_scene(gl_view_matrix);
+    render_scene(&m_gl_render_view_matrix[0]);
 }
 
 void LightPathsLayer::draw() const
 {
-    const auto gl_view_matrix = const_cast<const GLfloat*>(&m_gl_view_matrix[0]);
-    render_scene(gl_view_matrix);
+    render_scene(&m_gl_view_matrix[0]);
 }
 
 void LightPathsLayer::render_scene(const GLfloat* gl_view_matrix) const
@@ -455,46 +443,30 @@ void LightPathsLayer::render_scene(const GLfloat* gl_view_matrix) const
         const int selected_light_path_index = m_light_paths_manager.get_selected_light_path_index();
 
         GLint first_selected, last_selected;
-
         if (selected_light_path_index == -1)
         {
             first_selected = 0;
-            last_selected = static_cast<GLint>(m_path_terminator_vertex_indices[m_path_terminator_vertex_indices.size() - 1]);
+            last_selected = static_cast<GLint>(m_path_terminator_vertex_indices.back());
         }
         else
         {
-            assert(m_path_terminator_vertex_indices.size() > selected_light_path_index + 1);
+            assert(selected_light_path_index + 1 < m_path_terminator_vertex_indices.size());
             first_selected = static_cast<GLint>(m_path_terminator_vertex_indices[selected_light_path_index]);
             last_selected = static_cast<GLint>(m_path_terminator_vertex_indices[selected_light_path_index + 1]);
         }
 
         m_gl->glUseProgram(m_shader_program);
 
-        m_gl->glUniformMatrix4fv(
-            m_view_mat_loc,
-            1,
-            false,
-            gl_view_matrix);
-        m_gl->glUniformMatrix4fv(
-            m_proj_mat_loc,
-            1,
-            false,
-            const_cast<const GLfloat*>(&m_gl_proj_matrix[0]));
-        m_gl->glUniform2f(
-            m_res_loc,
-            (GLfloat)m_width,
-            (GLfloat)m_height);
-        m_gl->glUniform1i(
-            m_first_selected_loc,
-            first_selected);
-        m_gl->glUniform1i(
-            m_last_selected_loc,
-            last_selected);
+        m_gl->glUniformMatrix4fv(m_view_mat_loc, 1, false, gl_view_matrix);
+        m_gl->glUniformMatrix4fv(m_proj_mat_loc, 1, false, &m_gl_proj_matrix[0]);
+        m_gl->glUniform2f(m_res_loc, static_cast<GLfloat>(m_width), static_cast<GLfloat>(m_height));
+        m_gl->glUniform1i(m_first_selected_loc, first_selected);
+        m_gl->glUniform1i(m_last_selected_loc, last_selected);
 
         m_gl->glBindVertexArray(m_light_paths_vao);
 
         m_gl->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indices_ebo);
-        m_gl->glDrawElements(GL_TRIANGLES, m_total_triangle_count, GL_UNSIGNED_INT, static_cast<const GLvoid*>(0));
+        m_gl->glDrawElements(GL_TRIANGLES, m_total_triangle_count, GL_UNSIGNED_INT, nullptr);
         m_gl->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 }

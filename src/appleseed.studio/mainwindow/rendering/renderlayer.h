@@ -5,8 +5,7 @@
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2010-2013 Francois Beaune, Jupiter Jazz Limited
-// Copyright (c) 2014-2018 Francois Beaune, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -37,21 +36,23 @@
 namespace OCIO = OCIO_NAMESPACE;
 
 // Qt headers.
+#include <QObject>
+#include <QOpenGLTexture>
 #include <QOpenGLWidget>
 
 // Standard headers.
 #include <cstddef>
+#include <memory>
 
 // Forward declarations.
 class QOpenGLFunctions_4_1_Core;
-class QOpenGLTexture;
 class QWidget;
 
 namespace appleseed {
 namespace studio {
 
 //
-// A render widget based on QImage.
+// Turn a render widget into a render layer.
 //
 
 class RenderLayer
@@ -67,24 +68,19 @@ class RenderLayer
         OCIO::ConstConfigRcPtr  ocio_config,
         QWidget*                parent = nullptr);
 
-    // Thread-safe.
-    void set_display_transform(
-        const QString&          transform);
+    void set_gl_functions(QOpenGLFunctions_4_1_Core* functions);
+    void init_gl();
 
     void draw(
         const GLuint            empty_vao,
         const bool              paths_display_active);
 
-    void init_gl(QSurfaceFormat format);
-    void set_gl_functions(QOpenGLFunctions_4_1_Core* functions);
-
   private:
-    QOpenGLFunctions_4_1_Core*  m_gl;
-    QOpenGLTexture*             m_gl_tex;
-    GLuint                      m_shader_program;
-    GLint                       m_mult_loc;
-    bool                        m_gl_initialized;
-    bool                        m_refresh_gl_texture;
+    QOpenGLFunctions_4_1_Core*          m_gl = nullptr;
+    std::unique_ptr<QOpenGLTexture>     m_gl_tex;
+    GLuint                              m_shader_program = 0;
+    GLint                               m_mult_location = 0;
+    bool                                m_refresh_gl_texture = true;
 };
 
 }   // namespace studio

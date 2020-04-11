@@ -192,11 +192,6 @@ RenderingManager::~RenderingManager()
     clear_sticky_actions();
 }
 
-RenderingManager::RenderingMode RenderingManager::get_rendering_mode() const
-{
-    return m_rendering_mode;
-}
-
 void RenderingManager::start_rendering(
     Project*                    project,
     const ParamArray&           params,

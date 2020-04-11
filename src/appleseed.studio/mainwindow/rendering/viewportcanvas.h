@@ -5,7 +5,7 @@
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -71,10 +71,6 @@ class QOpenGLFunctions_4_1_Core;
 namespace appleseed {
 namespace studio {
 
-//
-// A render widget based on QImage.
-//
-
 class ViewportCanvas
   : public QOpenGLWidget
   , public qtcommon::ICapturableWidget
@@ -82,21 +78,21 @@ class ViewportCanvas
     Q_OBJECT
 
   public:
-    enum BaseLayer {
+    enum class BaseLayer
+    {
         FinalRender,
-        OpenGL,
-        BASE_LAYER_MAX_VALUE
+        OpenGL
     };
 
     // Constructor.
     ViewportCanvas(
-        const renderer::Project&    project,
-        const size_t                width,
-        const size_t                height,
-        OCIO::ConstConfigRcPtr      ocio_config,
-        const LightPathsManager&    lith_paths_manager,
-        const BaseLayer             layer,
-        QWidget*                    parent = nullptr);
+        const renderer::Project&        project,
+        const size_t                    width,
+        const size_t                    height,
+        OCIO::ConstConfigRcPtr          ocio_config,
+        const LightPathsManager&        lith_paths_manager,
+        const BaseLayer                 layer,
+        QWidget*                        parent = nullptr);
 
     ~ViewportCanvas();
 
@@ -109,14 +105,14 @@ class ViewportCanvas
 
   signals:
     void signal_material_dropped(
-        const foundation::Vector2d& drop_pos,
-        const QString&              material_name);
+        const foundation::Vector2d&     drop_pos,
+        const QString&                  material_name);
 
   public slots:
     void slot_light_path_selection_changed(
-        const bool                  display_light_paths,
-        const int                   selected_light_path_index,
-        const int                   total_light_paths);
+        const bool                      display_light_paths,
+        const int                       selected_light_path_index,
+        const int                       total_light_paths);
 
   private:
     const renderer::Project&            m_project;
@@ -145,16 +141,16 @@ class ViewportCanvas
     BaseLayer                           m_active_base_layer;
 
     void create_light_paths_layer(
-        const LightPathsManager&                    light_paths_manager,
-        const std::size_t                           width,
-        const std::size_t                           height);
+        const LightPathsManager&        light_paths_manager,
+        const std::size_t               width,
+        const std::size_t               height);
     void create_gl_scene_layer(
-        const std::size_t                           width,
-        const std::size_t                           height);
+        const std::size_t               width,
+        const std::size_t               height);
     void create_render_layer(
-        OCIO::ConstConfigRcPtr                      ocio_config,
-        const std::size_t                           width,
-        const std::size_t                           height);
+        OCIO::ConstConfigRcPtr          ocio_config,
+        const std::size_t               width,
+        const std::size_t               height);
 
     void initializeGL() override;
     void resizeGL(int width, int height) override;

@@ -32,9 +32,6 @@
 // appleseed.renderer headers.
 #include "renderer/api/rendering.h"
 
-// appleseed.foundation headers.
-#include "foundation/platform/compiler.h"
-
 // Forward declarations.
 namespace appleseed { namespace studio { class ViewportCanvas; } }
 

@@ -1,10 +1,11 @@
+
 //
 // This source file is part of appleseed.
 // Visit https://appleseedhq.net/ for additional information and resources.
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +38,5 @@ out vec4 Target0;
 void main()
 {
     const vec3 col = texture(u_render_tex, f_uv, 0).rgb;
-
     Target0 = vec4(col * u_mult, 1.0);
 }

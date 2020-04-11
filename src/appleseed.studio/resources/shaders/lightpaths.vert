@@ -1,10 +1,11 @@
+
 //
 // This source file is part of appleseed.
 // Visit https://appleseedhq.net/ for additional information and resources.
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +62,9 @@ const float NON_SELECTED_PATH_TRANSPARENCY = 0.05;
 
 //
 // Reference:
-// - https://mattdesl.svbtle.com/drawing-lines-is-hard#screenspace-projected-lines_2
+//
+//   Drawing Lines is Hard
+//   https://mattdesl.svbtle.com/drawing-lines-is-hard#screenspace-projected-lines_2
 //
 
 // Compute current line direction

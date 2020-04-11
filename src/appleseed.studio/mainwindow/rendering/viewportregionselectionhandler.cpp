@@ -117,7 +117,7 @@ bool ViewportRegionSelectionHandler::eventFilter(QObject* object, QEvent* event)
                 {
                     m_rubber_band->hide();
 
-                    const QPoint& pos = mouse_event->pos();
+                    const QPoint pos = mouse_event->pos();
 
                     // Don't consider a click as a selection.
                     if (m_origin == pos)

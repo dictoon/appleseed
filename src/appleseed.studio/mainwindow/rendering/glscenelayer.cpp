@@ -5,7 +5,7 @@
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -135,9 +135,9 @@ namespace
 }
 
 GLSceneLayer::GLSceneLayer(
-    const Project&                  project,
-    const std::size_t               width,
-    const std::size_t               height)
+    const Project&          project,
+    const std::size_t       width,
+    const std::size_t       height)
   : m_project(project)
   , m_camera(*m_project.get_uncached_active_camera())
   , m_backface_culling_enabled(false)
@@ -151,11 +151,6 @@ GLSceneLayer::GLSceneLayer(
 GLSceneLayer::~GLSceneLayer()
 {
     cleanup_gl_data();
-}
-
-void GLSceneLayer::set_gl_functions(QOpenGLFunctions_4_1_Core* functions)
-{
-    m_gl = functions;
 }
 
 void GLSceneLayer::set_transform(const Transformd& transform)
@@ -204,7 +199,7 @@ void GLSceneLayer::load_object_instance(
         GL_ARRAY_BUFFER,
         current_instance * TransformByteStride,
         TransformByteStride,
-        reinterpret_cast<const GLvoid*>(&gl_matrix[0]));
+        &gl_matrix[0]);
 }
 
 void GLSceneLayer::load_assembly_instance(
@@ -257,7 +252,7 @@ void GLSceneLayer::load_object_data(const Object& object)
         m_gl->glBufferData(
             GL_ARRAY_BUFFER,
             rasterizer.m_buffer.size() * sizeof(float),
-            reinterpret_cast<const GLvoid*>(&rasterizer.m_buffer[0]),
+            rasterizer.m_buffer.data(),
             GL_STATIC_DRAW);
 
         m_gl->glVertexAttribPointer(
@@ -381,8 +376,12 @@ void GLSceneLayer::load_scene_data()
         load_assembly_instance(assembly_instance, time);
 }
 
+void GLSceneLayer::set_gl_functions(QOpenGLFunctions_4_1_Core* functions)
+{
+    m_gl = functions;
+}
 
-void GLSceneLayer::init_gl(QSurfaceFormat format)
+void GLSceneLayer::init_gl()
 {
     // If there was already previous data, clean up.
     cleanup_gl_data();
@@ -390,18 +389,11 @@ void GLSceneLayer::init_gl(QSurfaceFormat format)
     const QByteArray vertex_shader = load_gl_shader("scene.vert");
     const QByteArray fragment_shader = load_gl_shader("scene.frag");
 
-    m_scene_shader_program = create_shader_program(
-        m_gl,
-        &vertex_shader,
-        &fragment_shader);
-
+    m_scene_shader_program = create_shader_program(m_gl, &vertex_shader, &fragment_shader);
     m_scene_view_mat_location = m_gl->glGetUniformLocation(m_scene_shader_program, "u_view");
     m_scene_proj_mat_location = m_gl->glGetUniformLocation(m_scene_shader_program, "u_proj");
 
-    m_depthonly_shader_program = create_shader_program(
-        m_gl,
-        &vertex_shader);
-
+    m_depthonly_shader_program = create_shader_program(m_gl, &vertex_shader);
     m_depthonly_view_mat_location = m_gl->glGetUniformLocation(m_depthonly_shader_program, "u_view");
     m_depthonly_proj_mat_location = m_gl->glGetUniformLocation(m_depthonly_shader_program, "u_proj");
 
@@ -436,7 +428,7 @@ void GLSceneLayer::cleanup_gl_data()
     {
         m_gl->glDeleteVertexArrays(
             static_cast<GLsizei>(m_scene_object_vaos.size()),
-            &m_scene_object_vaos[0]);
+            m_scene_object_vaos.data());
         m_scene_object_vaos.clear();
     }
 
@@ -444,7 +436,7 @@ void GLSceneLayer::cleanup_gl_data()
     {
         m_gl->glDeleteBuffers(
             static_cast<GLsizei>(m_scene_object_data_vbos.size()),
-            &m_scene_object_data_vbos[0]);
+            m_scene_object_data_vbos.data());
         m_scene_object_data_vbos.clear();
     }
 
@@ -452,18 +444,20 @@ void GLSceneLayer::cleanup_gl_data()
     {
         m_gl->glDeleteBuffers(
             static_cast<GLsizei>(m_scene_object_instance_vbos.size()),
-            &m_scene_object_instance_vbos[0]);
+            m_scene_object_instance_vbos.data());
         m_scene_object_instance_vbos.clear();
     }
 
     if (m_scene_shader_program != 0)
     {
         m_gl->glDeleteProgram(m_scene_shader_program);
+        m_scene_shader_program = 0;
     }
 
     if (m_depthonly_shader_program != 0)
     {
         m_gl->glDeleteProgram(m_depthonly_shader_program);
+        m_depthonly_shader_program = 0;
     }
 
     m_scene_object_index_map.clear();
@@ -484,24 +478,15 @@ void GLSceneLayer::draw()
 
     if (m_backface_culling_enabled)
         glEnable(GL_CULL_FACE);
-    else
-        glDisable(GL_CULL_FACE);
+    else glDisable(GL_CULL_FACE);
 
     m_gl->glDepthMask(GL_FALSE);
     m_gl->glEnable(GL_DEPTH_TEST);
     m_gl->glDepthFunc(GL_LEQUAL);
     m_gl->glUseProgram(m_scene_shader_program);
 
-    m_gl->glUniformMatrix4fv(
-        m_scene_view_mat_location,
-        1,
-        false,
-        const_cast<const GLfloat*>(&m_gl_view_matrix[0]));
-    m_gl->glUniformMatrix4fv(
-        m_scene_proj_mat_location,
-        1,
-        false,
-        const_cast<const GLfloat*>(&m_gl_proj_matrix[0]));
+    m_gl->glUniformMatrix4fv(m_scene_view_mat_location, 1, false, &m_gl_view_matrix[0]);
+    m_gl->glUniformMatrix4fv(m_scene_proj_mat_location, 1, false, &m_gl_proj_matrix[0]);
     
     render_scene();
 
@@ -525,16 +510,8 @@ void GLSceneLayer::draw_depth_only()
     m_gl->glDepthFunc(GL_LEQUAL);
     m_gl->glUseProgram(m_depthonly_shader_program);
 
-    m_gl->glUniformMatrix4fv(
-        m_depthonly_view_mat_location,
-        1,
-        false,
-        const_cast<const GLfloat*>(&m_gl_view_matrix[0]));
-    m_gl->glUniformMatrix4fv(
-        m_depthonly_proj_mat_location,
-        1,
-        false,
-        const_cast<const GLfloat*>(&m_gl_proj_matrix[0]));
+    m_gl->glUniformMatrix4fv(m_depthonly_view_mat_location, 1, false, &m_gl_view_matrix[0]);
+    m_gl->glUniformMatrix4fv(m_depthonly_proj_mat_location, 1, false, &m_gl_proj_matrix[0]);
 
     render_scene();
 
@@ -545,21 +522,16 @@ void GLSceneLayer::draw_depth_only()
 
 void GLSceneLayer::render_scene()
 {
-    for (std::size_t i = 0; i < m_scene_object_data_vbos.size(); i++)
+    for (std::size_t i = 0, e = m_scene_object_data_vbos.size(); i < e; ++i)
     {
         const GLuint vao = m_scene_object_vaos[i];
-        const int index_count = m_scene_object_data_index_counts[i];
-        const int instance_count = m_scene_object_instance_counts[i];
+        const GLsizei index_count = m_scene_object_data_index_counts[i];
+        const GLsizei instance_count = m_scene_object_instance_counts[i];
 
         m_gl->glBindVertexArray(vao);
-        m_gl->glDrawArraysInstanced(
-            GL_TRIANGLES,
-            0,
-            index_count,
-            instance_count);
+        m_gl->glDrawArraysInstanced(GL_TRIANGLES, 0, index_count, instance_count);
     }
 }
 
 }   // namespace studio
 }   // namespace appleseed
-

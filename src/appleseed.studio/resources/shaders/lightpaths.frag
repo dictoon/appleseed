@@ -1,10 +1,11 @@
+
 //
 // This source file is part of appleseed.
 // Visit https://appleseedhq.net/ for additional information and resources.
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +42,8 @@ uniform vec2 u_res;  // resolution of the frame.
 layout(location = 0) out vec4 accum_target;
 layout(location = 1) out float revealage_target;
 
-void write_pixel(vec4 premultiplied_col, vec3 transmit) {
+void write_pixel(vec4 premultiplied_col, vec3 transmit)
+{
     premultiplied_col.a *= 1.0 - clamp((transmit.r + transmit.g + transmit.b) * (1.0 / 3.0), 0, 1);
 
     const float a = min(1.0, premultiplied_col.a) * 8.0 + 0.01;
@@ -52,12 +54,12 @@ void write_pixel(vec4 premultiplied_col, vec3 transmit) {
     accum_target = premultiplied_col * w;
     revealage_target = premultiplied_col.a;
 }
+
 void main()
 {
     const float dist = abs(f_aa_norm) * f_total_thickness - 0.5 / f_aspect_expansion_len;
     const float eps = fwidth(dist);
-    float a = 1.0 - smoothstep(f_thickness - eps, f_thickness + eps, dist);
-    a *= f_color.a;
+    const float a = (1.0 - smoothstep(f_thickness - eps, f_thickness + eps, dist)) * f_color.a;
 
     const vec4 premult = vec4(f_color.rgb * a, a);
     write_pixel(premult, vec3(0.0));

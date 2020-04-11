@@ -5,7 +5,7 @@
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@
 #include <QString>
 
 // Standard headers.
-#include <string>
+#include <cassert>
 
 using namespace appleseed::qtcommon;
 using namespace renderer;
@@ -52,23 +52,23 @@ namespace studio {
 namespace
 { 
     // Get a string from an OpenGL shader kind value.
-    const std::string shader_kind_to_string(const GLint shader_kind)
+    const char* shader_kind_to_string(const GLint shader_kind)
     {
         switch (shader_kind)
         {
-            case GL_VERTEX_SHADER:      return "Vertex";
-            case GL_FRAGMENT_SHADER:    return "Fragment";
-            default:                    return "Unknown Kind";
+            case GL_VERTEX_SHADER:      return "vertex";
+            case GL_FRAGMENT_SHADER:    return "fragment";
+            default:                    return "unknown";
         }
     }
 
     // Compile an OpenGL shader.
     void compile_shader(
-        QOpenGLFunctions_4_1_Core* f,
-        const GLuint               shader,
-        const GLsizei              count,
-        const GLchar**             src_string,
-        const GLint*               length)
+        QOpenGLFunctions_4_1_Core*  f,
+        const GLuint                shader,
+        const GLsizei               count,
+        const GLchar**              src_string,
+        const GLint*                length)
     {
         f->glShaderSource(shader, count, src_string, length);
         f->glCompileShader(shader);
@@ -79,17 +79,16 @@ namespace
 
         if (!success)
         {
+            GLint shader_kind;
+            f->glGetShaderiv(shader, GL_SHADER_TYPE, &shader_kind);
+            const char* shader_kind_string = shader_kind_to_string(shader_kind);
+
             char info_log[1024];
             f->glGetShaderInfoLog(shader, sizeof(info_log), NULL, info_log);
 
-            GLint shader_kind;
-            f->glGetShaderiv(shader, GL_SHADER_TYPE, &shader_kind);
-
-            const std::string shader_kind_string = shader_kind_to_string(shader_kind);
-
             RENDERER_LOG_ERROR(
-                "%s OpenGL shader compilation failed:\n%s",
-                shader_kind_string.c_str(),
+                "OpenGL shader of type '%s' compilation failed:\n%s",
+                shader_kind_string,
                 info_log);
         }
     }

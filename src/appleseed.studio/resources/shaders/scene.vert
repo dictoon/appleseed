@@ -1,10 +1,11 @@
+
 //
 // This source file is part of appleseed.
 // Visit https://appleseedhq.net/ for additional information and resources.
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -40,11 +41,11 @@ layout(location = 1) out vec3 frag_norm;
 
 void main()
 {
-    mat4 model_view = u_view * i_model;
-    vec4 world_pos = model_view * vec4(a_pos, 1.0);
+    const mat4 model_view = u_view * i_model;
+    const vec4 world_pos = model_view * vec4(a_pos, 1.0);
     frag_pos = world_pos.xyz;
 
-    mat3 normal_matrix = mat3(transpose(inverse(model_view)));
+    const mat3 normal_matrix = mat3(transpose(inverse(model_view)));
     frag_norm = normal_matrix * a_norm;
 
     gl_Position = u_proj * world_pos;

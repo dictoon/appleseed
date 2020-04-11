@@ -5,7 +5,7 @@
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -59,7 +59,6 @@ namespace renderer  { class Project; }
 class QImage;
 class QKeyEvent;
 class QOpenGLFunctions_4_1_Core;
-class QSurfaceFormat;
 
 namespace appleseed {
 namespace studio {
@@ -81,11 +80,10 @@ class GLSceneLayer
 
     ~GLSceneLayer();
 
-    void init_gl(QSurfaceFormat format);
+    void set_gl_functions(QOpenGLFunctions_4_1_Core* functions);
+    void init_gl();
 
     void set_transform(const foundation::Transformd& transform);
-
-    void set_gl_functions(QOpenGLFunctions_4_1_Core* functions);
 
     void toggle_backface_culling(const bool checked);
 
@@ -144,4 +142,3 @@ class GLSceneLayer
 
 }   // namespace studio
 }   // namespace appleseed
-

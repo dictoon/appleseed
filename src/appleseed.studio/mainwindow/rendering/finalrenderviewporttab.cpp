@@ -183,7 +183,7 @@ void FinalRenderViewportTab::slot_clear_frame()
 
 void FinalRenderViewportTab::slot_display_transform_changed(const QString& transform)
 {
-    m_viewport_canvas->get_render_layer()->set_display_transform(transform);
+    m_viewport_canvas->get_render_layer()->slot_display_transform_changed(transform);
     m_viewport_canvas->update();
 }
 
@@ -531,4 +531,3 @@ void FinalRenderViewportTab::set_light_paths_toggle_enabled(const bool enabled)
 
 }   // namespace studio
 }   // namespace appleseed
-

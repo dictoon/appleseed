@@ -5,7 +5,7 @@
 //
 // This software is released under the MIT license.
 //
-// Copyright (c) 2019 Gray Olson, The appleseedhq Organization
+// Copyright (c) 2019-2020 Gray Olson, The appleseedhq Organization
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,37 +32,20 @@
 // appleseed.studio headers.
 #include "utility/gl.h"
 
-// appleseed.renderer headers.
-#include "renderer/api/frame.h"
-
 // appleseed.foundation headers.
-#include "foundation/image/canvasproperties.h"
-#include "foundation/image/image.h"
-#include "foundation/image/nativedrawing.h"
-#include "foundation/image/tile.h"
-#include "foundation/math/scalar.h"
-#include "foundation/platform/types.h"
+#include "foundation/math/vector.h"
 
 // Qt headers.
-#include <QColor>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QMimeData>
-#include <QMutexLocker>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_4_1_Core>
 #include <QSurfaceFormat>
-#include <QTimer>
 #include <Qt>
 
-// Standard headers.
-#include <algorithm>
-#include <cassert>
-
 using namespace foundation;
-using namespace renderer;
-using namespace std;
 
 namespace appleseed {
 namespace studio {
@@ -123,22 +106,14 @@ void ViewportCanvas::create_render_layer(
     const std::size_t           width,
     const std::size_t           height)
 {
-    m_render_layer =
-        std::unique_ptr<RenderLayer>(new RenderLayer(
-            width,
-            height,
-            ocio_config));
+    m_render_layer.reset(new RenderLayer(width, height, ocio_config));
 }
 
 void ViewportCanvas::create_gl_scene_layer(
     const std::size_t           width,
     const std::size_t           height)
 {
-    m_gl_scene_layer =
-        std::unique_ptr<GLSceneLayer>(new GLSceneLayer(
-            m_project,
-            width,
-            height));
+    m_gl_scene_layer.reset(new GLSceneLayer(m_project, width, height));
 }
 
 void ViewportCanvas::create_light_paths_layer(
@@ -146,8 +121,8 @@ void ViewportCanvas::create_light_paths_layer(
     const std::size_t           width,
     const std::size_t           height)
 {
-    m_light_paths_layer =
-        std::unique_ptr<LightPathsLayer>(new LightPathsLayer(
+    m_light_paths_layer.reset(
+        new LightPathsLayer(
             m_project,
             light_paths_manager,
             width,
@@ -198,18 +173,19 @@ void ViewportCanvas::initializeGL()
     m_gl->glBindVertexArray(m_empty_vao);
     m_gl->glGenBuffers(1, &m_empty_vbo);
     m_gl->glBindBuffer(GL_ARRAY_BUFFER, m_empty_vbo);
-    float vals[3]{ 0.0f, 0.0f, 0.0f };
-    m_gl->glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3, static_cast<const GLvoid*>(vals), GL_STATIC_DRAW);
-    m_gl->glVertexAttribPointer(0, sizeof(float), GL_FLOAT, GL_FALSE, sizeof(float), static_cast<const GLvoid*>(0));
+    const float vals[3] { 0.0f, 0.0f, 0.0f };
+    m_gl->glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3, vals, GL_STATIC_DRAW);
+    m_gl->glVertexAttribPointer(0, sizeof(float), GL_FLOAT, GL_FALSE, sizeof(float), reinterpret_cast<const GLvoid*>(0));
     m_gl->glEnableVertexAttribArray(0);
 
-    auto vertex_shader = load_gl_shader("fullscreen_tri.vert");
-    auto fragment_shader = load_gl_shader("oit_resolve.frag");
+    const QByteArray vertex_shader = load_gl_shader("fullscreen_tri.vert");
+    const QByteArray fragment_shader = load_gl_shader("oit_resolve.frag");
 
-    m_resolve_program = create_shader_program(
-        m_gl,
-        &vertex_shader,
-        &fragment_shader);
+    m_resolve_program =
+        create_shader_program(
+            m_gl,
+            &vertex_shader,
+            &fragment_shader);
 
     m_accum_loc = m_gl->glGetUniformLocation(m_resolve_program, "u_accum_tex");
     m_revealage_loc = m_gl->glGetUniformLocation(m_resolve_program, "u_revealage_tex");
@@ -246,11 +222,13 @@ void ViewportCanvas::initializeGL()
     m_gl->glUniform1i(m_revealage_loc, 1);
 
     m_render_layer->set_gl_functions(m_gl);
-    m_render_layer->init_gl(qs_format);
+    m_render_layer->init_gl();
+
     m_gl_scene_layer->set_gl_functions(m_gl);
-    m_gl_scene_layer->init_gl(qs_format);
+    m_gl_scene_layer->init_gl();
+
     m_light_paths_layer->set_gl_functions(m_gl);
-    m_light_paths_layer->init_gl(qs_format);
+    m_light_paths_layer->init_gl();
 }
 
 void ViewportCanvas::resizeGL(int width, int height)
@@ -282,21 +260,21 @@ void ViewportCanvas::resizeGL(int width, int height)
 
 void ViewportCanvas::paintGL()
 {
-    double dpr = static_cast<double>(m_render_layer->image().devicePixelRatio());
-    GLsizei w = static_cast<GLsizei>(width() * dpr);
-    GLsizei h = static_cast<GLsizei>(height() * dpr);
+    const double dpr = static_cast<double>(m_render_layer->image().devicePixelRatio());
+    const GLsizei w = static_cast<GLsizei>(width() * dpr);
+    const GLsizei h = static_cast<GLsizei>(height() * dpr);
     m_gl->glViewport(0, 0, w, h);
 
-    // Clear the main framebuffers
+    // Clear the main framebuffers.
     m_gl->glBindFramebuffer(GL_FRAMEBUFFER, m_main_fb);
-    GLfloat main_clear[]{ 0.0, 0.0, 0.0, 0.0 };
+    const GLfloat main_clear[] { 0.0f, 0.0f, 0.0f, 0.0f };
     m_gl->glClearBufferfv(GL_COLOR, 0, main_clear);
     m_gl->glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0, 0);
 
     if (m_active_base_layer == BaseLayer::FinalRender)
         m_render_layer->draw(m_empty_vao, m_draw_light_paths);
 
-    QOpenGLContext *ctx = const_cast<QOpenGLContext *>(QOpenGLContext::currentContext());
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
 
     if (m_active_base_layer == BaseLayer::OpenGL || m_draw_light_paths)
         m_gl_scene_layer->draw_depth_only();
@@ -306,20 +284,20 @@ void ViewportCanvas::paintGL()
 
     if (m_draw_light_paths)
     {
-        // Bind accum/revealage framebuffer
+        // Bind accum/revealage framebuffer.
         m_gl->glBindFramebuffer(GL_FRAMEBUFFER, m_accum_revealage_fb);
 
-        // Set both attachments as active draw buffers
+        // Set both attachments as active draw buffers.
         const GLenum buffers[]{ GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
         m_gl->glDrawBuffers(2, buffers);
 
-        // Clear the buffers
-        GLfloat accum_clear_col[]{ 0.0, 0.0, 0.0, 0.0 };
+        // Clear the buffers.
+        const GLfloat accum_clear_col[] { 0.0f, 0.0f, 0.0f, 0.0f };
         m_gl->glClearBufferfv(GL_COLOR, 0, accum_clear_col);
-        GLfloat revealage_clear_col[]{ 1.0, 0.0, 0.0, 0.0 };
+        const GLfloat revealage_clear_col[] { 1.0f, 0.0f, 0.0f, 0.0f };
         m_gl->glClearBufferfv(GL_COLOR, 1, revealage_clear_col);
 
-        // Enable proper blending for each
+        // Enable proper blending for each.
         m_gl->glEnable(GL_BLEND);
         m_gl->glBlendFunci(0, GL_ONE, GL_ONE);
         m_gl->glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
@@ -329,12 +307,11 @@ void ViewportCanvas::paintGL()
 
         if (m_active_base_layer == BaseLayer::FinalRender)
             m_light_paths_layer->draw_render_camera();
-        else
-            m_light_paths_layer->draw();
+        else m_light_paths_layer->draw();
 
         m_gl->glUseProgram(m_resolve_program);
 
-        // Set default framebuffer object
+        // Set default framebuffer object.
         m_gl->glBindFramebuffer(GL_FRAMEBUFFER, m_main_fb);
         m_gl->glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
@@ -371,13 +348,12 @@ void ViewportCanvas::dragEnterEvent(QDragEnterEvent* event)
 
 void ViewportCanvas::dragMoveEvent(QDragMoveEvent* event)
 {
-    if (pos().x() <= event->pos().x() && pos().y() <= event->pos().y()
-        && event->pos().x() < pos().x() + width() && event->pos().y() < pos().y() + height())
-    {
+    if (event->pos().x() >= pos().x() &&
+        event->pos().y() >= pos().y() &&
+        event->pos().x() < pos().x() + width() &&
+        event->pos().y() < pos().y() + height())
         event->accept();
-    }
-    else
-        event->ignore();
+    else event->ignore();
 }
 
 void ViewportCanvas::dropEvent(QDropEvent* event)

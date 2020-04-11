@@ -53,9 +53,8 @@ namespace bpy = boost::python;
 using namespace foundation;
 using namespace renderer;
 
-// Some GL headers do not define GL_RGBA32F.
-// Instead of adding an OpenGL extension library like glew
-// as a dependency, manually define it if needed.
+// Some OpenGL headers do not define GL_RGBA32F.
+// Instead of adding an OpenGL extension library like glew as a dependency, manually define it if needed.
 #ifndef GL_RGBA32F
     #define GL_RGBA32F  0x8814
 #endif
