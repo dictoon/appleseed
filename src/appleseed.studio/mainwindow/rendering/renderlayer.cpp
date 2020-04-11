@@ -57,7 +57,7 @@ RenderLayer::RenderLayer(
     const std::size_t       height,
     OCIO::ConstConfigRcPtr  ocio_config,
     QWidget*                parent)
-  : RenderWidget(width, height, ocio_config, parent)
+  : qtcommon::RenderWidget(width, height, ocio_config, parent)
   , m_gl_initialized(false)
   , m_refresh_gl_texture(false)
 {
@@ -118,7 +118,7 @@ void RenderLayer::set_gl_functions(QOpenGLFunctions_4_1_Core* functions)
 
 void RenderLayer::set_display_transform(const QString& transform)
 {
-    // todo: redundant with RenderWidget::slot_display_transform_changed.
+    // todo: redundant with qtcommon::RenderWidget::slot_display_transform_changed.
 
     QMutexLocker locker(&m_mutex);
 

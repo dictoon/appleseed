@@ -67,7 +67,7 @@ namespace
         {
             connect(
                 this, &QtTileCallback::signal_update,
-                m_render_widget, static_cast<void (QWidget::*)(void)>(&QWidget::update),
+                viewport_canvas, static_cast<void (QWidget::*)(void)>(&QWidget::update),  // todo: was QWidget::repaint
                 Qt::QueuedConnection);
         }
 

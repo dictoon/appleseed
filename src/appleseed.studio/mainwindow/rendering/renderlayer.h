@@ -29,8 +29,8 @@
 
 #pragma once
 
-// appleseed.studio headers.
-#include "mainwindow/rendering/renderwidget.h"
+// appleseed.qtcommon headers.
+#include "widgets/renderwidget.h"
 
 // OpenColorIO headers.
 #include <OpenColorIO/OpenColorIO.h>
@@ -55,7 +55,7 @@ namespace studio {
 //
 
 class RenderLayer
-  : public RenderWidget
+  : public qtcommon::RenderWidget
 {
     Q_OBJECT
 

@@ -35,6 +35,8 @@
 #include "mainwindow/rendering/renderclipboardhandler.h"
 #include "mainwindow/rendering/renderlayer.h"
 
+// appleseed.qtcommon headers.
+#include "widgets/icapturablewidget.h"
 
 // appleseed.foundation headers.
 #include "foundation/image/image.h"
@@ -75,7 +77,7 @@ namespace studio {
 
 class ViewportCanvas
   : public QOpenGLWidget
-  , public ICapturableWidget
+  , public qtcommon::ICapturableWidget
 {
     Q_OBJECT
 
